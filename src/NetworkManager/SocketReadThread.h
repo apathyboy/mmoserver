@@ -88,6 +88,8 @@ public:
 
 protected:
 
+    void handleIncomingMessage_(struct sockaddr_in from, uint16_t recvLen, Packet* incoming_message);
+
     void                          _startup(void);
     void                          _shutdown(void);
 

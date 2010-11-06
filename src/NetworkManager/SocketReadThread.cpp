@@ -140,7 +140,6 @@ void SocketReadThread::run(void)
     int16               recvLen = 0;
     uint16              port = 0;
     uint16              decompressLen = 0;
-    Session*            session;
     fd_set              socketSet;
     struct              timeval tv;
 
@@ -223,218 +222,12 @@ void SocketReadThread::run(void)
             // Get our remote Address and port
             address		= from.sin_addr.s_addr;
             port		= from.sin_port;
-
-            uint64 hash = address | (((uint64)port) << 32);
-
+            
             // Grab our packet type
             mReceivePacket->Reset();           // Reset our internal members so we can use the packet again.
             mReceivePacket->setSize(recvLen); // crc is subtracted by the decryption
 
-            uint8  packetTypeLow	= mReceivePacket->peekUint8();
-            uint16 packetType		= mReceivePacket->getUint16();
-
-            boost::mutex::scoped_lock lk(mSocketReadMutex);
-
-            AddressSessionMap::iterator i = mAddressSessionMap.find(hash);
-
-            if(i != mAddressSessionMap.end())
-            {
-                session = (*i).second;
-            }
-            else
-            {
-                // We should only be creating a new session if it's a session request packet
-                if(packetType == SESSIONOP_SessionRequest)
-                {
-                    session = mSessionFactory->CreateSession();
-                    session->setSocketReadThread(this);
-                    session->setPacketFactory(mPacketFactory);
-                    session->setAddress(address);  // Store the address and port in network order so we don't have to
-                    session->setPort(port);  // convert them all the time.  Only convert for humans.
-                    session->setResendWindowSize(mSessionResendWindowSize);
-
-                    // Insert the session into our address map and process list
-                    mAddressSessionMap.insert(std::make_pair(hash, session));
-                    mSocketWriteThread->NewSession(session);
-                    session->mHash = hash;
-
-                    LOG(INFO) << "Added Service " << mSessionFactory->getService()->getId() << ": New Session(" 
-                    <<inet_ntoa(from.sin_addr) << ", " << ntohs(session->getPort()) << "), AddressMap: " << mAddressSessionMap.size();
-                }
-                else
-                {
-                    LOG(WARNING) << "Socket Read Thread Session not found. Type:0x" << packetType;
-
-                    lk.unlock();
-
-                    continue;
-                }
-            }
-
-            lk.unlock();
-
-            // I don't like any of the code below, but it's going to take me a bit to work out a good way to handle decompression
-            // and decryption.  It's dependent on session layer protocol information, which should not be looked at here.  Should
-            // be placed in Session, though I'm not sure how or where yet.
-            // Set the size of the packet
-
-            // Validate our date header.  If it's not a valid header, drop it.
-            if(packetType > 0x00ff && (packetType & 0x00ff) == 0 && session != NULL)
-            {
-                switch(packetType)
-                {
-                case SESSIONOP_Disconnect:
-                case SESSIONOP_DataAck1:
-                case SESSIONOP_DataAck2:
-                case SESSIONOP_DataAck3:
-                case SESSIONOP_DataAck4:
-                case SESSIONOP_DataOrder1:
-                case SESSIONOP_DataOrder2:
-                case SESSIONOP_DataOrder3:
-                case SESSIONOP_DataOrder4:
-                case SESSIONOP_Ping:
-                {
-                    // Before we do anything else, check the CRC.
-                    uint32 packetCrc = mCompCryptor->GenerateCRC(mReceivePacket->getData(), recvLen - 2, session->getEncryptKey());  // - 2 crc
-
-                    uint8 crcLow  = (uint8)*(mReceivePacket->getData() + recvLen - 1);
-                    uint8 crcHigh = (uint8)*(mReceivePacket->getData() + recvLen - 2);
-
-                    if (crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8))
-                    {
-                        // CRC mismatch.  Dropping packet.
-                        //gLogger->hexDump(mReceivePacket->getData(),mReceivePacket->getSize());
-                        DLOG(INFO) << "DIS/ACK/ORDER/PING dropped.";
-                        continue;
-                    }
-
-                    // Decrypt the packet
-                    mCompCryptor->Decrypt(mReceivePacket->getData() + 2, recvLen - 4, session->getEncryptKey());
-
-                    // Send the packet to the session.
-                    session->HandleSessionPacket(mReceivePacket);
-                    mReceivePacket = mPacketFactory->CreatePacket();
-                }
-                break;
-
-                case SESSIONOP_MultiPacket:
-                case SESSIONOP_NetStatRequest:
-                case SESSIONOP_NetStatResponse:
-                case SESSIONOP_DataChannel1:
-                case SESSIONOP_DataChannel2:
-                case SESSIONOP_DataChannel3:
-                case SESSIONOP_DataChannel4:
-                case SESSIONOP_DataFrag1:
-                case SESSIONOP_DataFrag2:
-                case SESSIONOP_DataFrag3:
-                case SESSIONOP_DataFrag4:
-                {
-                    // Before we do anything else, check the CRC.
-                    uint32 packetCrc = mCompCryptor->GenerateCRC(mReceivePacket->getData(), recvLen - 2, session->getEncryptKey());
-
-                    uint8 crcLow  = (uint8)*(mReceivePacket->getData() + recvLen - 1);
-                    uint8 crcHigh = (uint8)*(mReceivePacket->getData() + recvLen - 2);
-
-                    if (crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8))
-                    {
-                        // CRC mismatch.  Dropping packet.
-
-                       LOG(INFO) << "Socket Read Thread: Reliable Packet dropped." << packetType << " CRC mismatch.";
-                        mCompCryptor->Decrypt(mReceivePacket->getData() + 2, recvLen - 4, session->getEncryptKey());  // don't hardcode the header buffer or CRC len.
-                        continue;
-                    }
-
-                    // Decrypt the packet
-                    mCompCryptor->Decrypt(mReceivePacket->getData() + 2, recvLen - 4, session->getEncryptKey());  // don't hardcode the header buffer or CRC len.
-
-                    // Decompress the packet
-                    decompressLen = mCompCryptor->Decompress(mReceivePacket->getData() + 2, recvLen - 5, mDecompressPacket->getData() + 2, mDecompressPacket->getMaxPayload() - 5);
-
-                    if(decompressLen > 0)
-                    {
-                        mDecompressPacket->setIsCompressed(true);
-                        mDecompressPacket->setSize(decompressLen + 2); // add the packet header size
-                        *((uint16*)(mDecompressPacket->getData())) = *((uint16*)mReceivePacket->getData());
-                        session->HandleSessionPacket(mDecompressPacket);
-                        mDecompressPacket = mPacketFactory->CreatePacket();
-
-                        break;
-                    }
-                    else
-                    {
-                        // we have to remove comp/crc
-                        mReceivePacket->setSize(mReceivePacket->getSize() - 3);
-                    }
-                }
-
-                case SESSIONOP_SessionRequest:
-                case SESSIONOP_SessionResponse:
-                case SESSIONOP_FatalError:
-                case SESSIONOP_FatalErrorResponse:
-                    //case SESSIONOP_Reset:
-                {
-                    // Send the packet to the session.
-
-                    session->HandleSessionPacket(mReceivePacket);
-                    mReceivePacket = mPacketFactory->CreatePacket();
-                }
-                break;
-
-                default:
-                {
-                    DLOG(INFO) << "SocketReadThread: Dont know what todo with this packet! --tmr <3";
-                }
-                break;
-
-                } //end switch(sessionOp)
-            }
-            // Validate that our data is actually fastpath
-            else if(packetTypeLow < 0x0d && session != NULL) // highest fastpath I've seen is 0x0b -tmr
-            {
-                // Before we do anything else, check the CRC.
-                uint32	packetCrc	= mCompCryptor->GenerateCRC(mReceivePacket->getData(), recvLen - 2, session->getEncryptKey());
-                uint8	crcLow		= (uint8)*(mReceivePacket->getData() + recvLen - 1);
-                uint8	crcHigh		= (uint8)*(mReceivePacket->getData() + recvLen - 2);
-
-                if(crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8))
-                {
-                    // CRC mismatch.  Dropping packet.
-                    LOG(INFO) << "Packet dropped.  CRC mismatch.";
-                    continue;
-                }
-
-                // It's a 'fastpath' packet.  Send it directly up the data channel
-                mCompCryptor->Decrypt(mReceivePacket->getData() + 1, recvLen - 3, session->getEncryptKey());  // don't hardcode the header buffer or CRc len.
-
-                // Decompress the packet
-                decompressLen	= 0;
-                uint8 compFlag	= (uint8)*(mReceivePacket->getData() + recvLen - 3);
-
-                if(compFlag == 1)
-                {
-                    decompressLen = mCompCryptor->Decompress(mReceivePacket->getData() + 1, recvLen - 4, mDecompressPacket->getData() + 1, mDecompressPacket->getMaxPayload() - 4);
-                }
-
-                if(decompressLen > 0)
-                {
-                    mDecompressPacket->setIsCompressed(true);
-                    mDecompressPacket->setSize(decompressLen + 1); // add the packet header size
-
-                    *((uint8*)(mDecompressPacket->getData())) = *((uint8*)mReceivePacket->getData());
-
-                    // send the packet up the stack
-                    session->HandleFastpathPacket(mDecompressPacket);
-                    mDecompressPacket = mPacketFactory->CreatePacket();
-                }
-                else
-                {
-                    // send the packet up the stack, remove comp/crc
-                    mReceivePacket->setSize(mReceivePacket->getSize() - 3);
-
-                    session->HandleFastpathPacket(mReceivePacket);
-                    mReceivePacket = mPacketFactory->CreatePacket();
-                }
-            }
+            handleIncomingMessage_(from, recvLen, mReceivePacket);
         }
 
         boost::this_thread::sleep(boost::posix_time::microseconds(10));
@@ -489,7 +282,222 @@ void SocketReadThread::RemoveAndDestroySession(Session* session)
     }
 }
 
-//======================================================================================================================
+
+
+void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t recvLen, Packet* incoming_message) {
+    Session* session;
+    uint16_t decompressLen = 0;
+    
+    // Get our remote Address and port
+    uint32_t address = from.sin_addr.s_addr;
+    uint16_t port    = from.sin_port;
+
+    uint64 hash = address | (((uint64)port) << 32);
+    
+    uint8  packetTypeLow	= incoming_message->peekUint8();
+    uint16 packetType		= incoming_message->getUint16();
+
+    boost::mutex::scoped_lock lk(mSocketReadMutex);
+
+    AddressSessionMap::iterator i = mAddressSessionMap.find(hash);
+
+    if(i != mAddressSessionMap.end())
+    {
+        session = (*i).second;
+    }
+    else
+    {
+        // We should only be creating a new session if it's a session request packet
+        if(packetType == SESSIONOP_SessionRequest)
+        {
+            session = mSessionFactory->CreateSession();
+            session->setSocketReadThread(this);
+            session->setPacketFactory(mPacketFactory);
+            session->setAddress(address);  // Store the address and port in network order so we don't have to
+            session->setPort(port);  // convert them all the time.  Only convert for humans.
+            session->setResendWindowSize(mSessionResendWindowSize);
+
+            // Insert the session into our address map and process list
+            mAddressSessionMap.insert(std::make_pair(hash, session));
+            mSocketWriteThread->NewSession(session);
+            session->mHash = hash;
+
+            LOG(INFO) << "Added Service " << mSessionFactory->getService()->getId() << ": New Session(" 
+            <<inet_ntoa(from.sin_addr) << ", " << ntohs(session->getPort()) << "), AddressMap: " << mAddressSessionMap.size();
+        }
+        else
+        {
+            LOG(WARNING) << "Socket Read Thread Session not found. Type:0x" << packetType;
+            return;
+        }
+    }
+
+    lk.unlock();
+
+    // I don't like any of the code below, but it's going to take me a bit to work out a good way to handle decompression
+    // and decryption.  It's dependent on session layer protocol information, which should not be looked at here.  Should
+    // be placed in Session, though I'm not sure how or where yet.
+    // Set the size of the packet
+
+    // Validate our date header.  If it's not a valid header, drop it.
+    if(packetType > 0x00ff && (packetType & 0x00ff) == 0 && session != NULL)
+    {
+        switch(packetType)
+        {
+        case SESSIONOP_Disconnect:
+        case SESSIONOP_DataAck1:
+        case SESSIONOP_DataAck2:
+        case SESSIONOP_DataAck3:
+        case SESSIONOP_DataAck4:
+        case SESSIONOP_DataOrder1:
+        case SESSIONOP_DataOrder2:
+        case SESSIONOP_DataOrder3:
+        case SESSIONOP_DataOrder4:
+        case SESSIONOP_Ping:
+        {
+            // Before we do anything else, check the CRC.
+            uint32 packetCrc = mCompCryptor->GenerateCRC(incoming_message->getData(), recvLen - 2, session->getEncryptKey());  // - 2 crc
+
+            uint8 crcLow  = (uint8)*(incoming_message->getData() + recvLen - 1);
+            uint8 crcHigh = (uint8)*(incoming_message->getData() + recvLen - 2);
+
+            if (crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8))
+            {
+                // CRC mismatch.  Dropping packet.
+                //gLogger->hexDump(mReceivePacket->getData(),mReceivePacket->getSize());
+                DLOG(INFO) << "DIS/ACK/ORDER/PING dropped.";
+                return;
+            }
+
+            // Decrypt the packet
+            mCompCryptor->Decrypt(incoming_message->getData() + 2, recvLen - 4, session->getEncryptKey());
+
+            // Send the packet to the session.
+            session->HandleSessionPacket(incoming_message);
+            incoming_message = mPacketFactory->CreatePacket();
+        }
+        break;
+
+        case SESSIONOP_MultiPacket:
+        case SESSIONOP_NetStatRequest:
+        case SESSIONOP_NetStatResponse:
+        case SESSIONOP_DataChannel1:
+        case SESSIONOP_DataChannel2:
+        case SESSIONOP_DataChannel3:
+        case SESSIONOP_DataChannel4:
+        case SESSIONOP_DataFrag1:
+        case SESSIONOP_DataFrag2:
+        case SESSIONOP_DataFrag3:
+        case SESSIONOP_DataFrag4:
+        {
+            // Before we do anything else, check the CRC.
+            uint32 packetCrc = mCompCryptor->GenerateCRC(incoming_message->getData(), recvLen - 2, session->getEncryptKey());
+
+            uint8 crcLow  = (uint8)*(incoming_message->getData() + recvLen - 1);
+            uint8 crcHigh = (uint8)*(incoming_message->getData() + recvLen - 2);
+
+            if (crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8))
+            {
+                // CRC mismatch.  Dropping packet.
+
+               LOG(INFO) << "Socket Read Thread: Reliable Packet dropped." << packetType << " CRC mismatch.";
+                mCompCryptor->Decrypt(incoming_message->getData() + 2, recvLen - 4, session->getEncryptKey());  // don't hardcode the header buffer or CRC len.
+                return;
+            }
+
+            // Decrypt the packet
+            mCompCryptor->Decrypt(incoming_message->getData() + 2, recvLen - 4, session->getEncryptKey());  // don't hardcode the header buffer or CRC len.
+
+            // Decompress the packet
+            decompressLen = mCompCryptor->Decompress(incoming_message->getData() + 2, recvLen - 5, mDecompressPacket->getData() + 2, mDecompressPacket->getMaxPayload() - 5);
+
+            if(decompressLen > 0)
+            {
+                mDecompressPacket->setIsCompressed(true);
+                mDecompressPacket->setSize(decompressLen + 2); // add the packet header size
+                *((uint16*)(mDecompressPacket->getData())) = *((uint16*)incoming_message->getData());
+                session->HandleSessionPacket(mDecompressPacket);
+                mDecompressPacket = mPacketFactory->CreatePacket();
+
+                break;
+            }
+            else
+            {
+                // we have to remove comp/crc
+                incoming_message->setSize(incoming_message->getSize() - 3);
+            }
+        }
+
+        case SESSIONOP_SessionRequest:
+        case SESSIONOP_SessionResponse:
+        case SESSIONOP_FatalError:
+        case SESSIONOP_FatalErrorResponse:
+            //case SESSIONOP_Reset:
+        {
+            // Send the packet to the session.
+
+            session->HandleSessionPacket(incoming_message);
+            incoming_message = mPacketFactory->CreatePacket();
+        }
+        break;
+
+        default:
+        {
+            DLOG(INFO) << "SocketReadThread: Dont know what todo with this packet! --tmr <3";
+        }
+        break;
+
+        } //end switch(sessionOp)
+    }
+    // Validate that our data is actually fastpath
+    else if(packetTypeLow < 0x0d && session != NULL) // highest fastpath I've seen is 0x0b -tmr
+    {
+        // Before we do anything else, check the CRC.
+        uint32	packetCrc	= mCompCryptor->GenerateCRC(incoming_message->getData(), recvLen - 2, session->getEncryptKey());
+        uint8	crcLow		= (uint8)*(incoming_message->getData() + recvLen - 1);
+        uint8	crcHigh		= (uint8)*(incoming_message->getData() + recvLen - 2);
+
+        if(crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8))
+        {
+            // CRC mismatch.  Dropping packet.
+            LOG(INFO) << "Packet dropped.  CRC mismatch.";
+            return;
+        }
+
+        // It's a 'fastpath' packet.  Send it directly up the data channel
+        mCompCryptor->Decrypt(incoming_message->getData() + 1, recvLen - 3, session->getEncryptKey());  // don't hardcode the header buffer or CRc len.
+
+        // Decompress the packet
+        decompressLen	= 0;
+        uint8 compFlag	= (uint8)*(incoming_message->getData() + recvLen - 3);
+
+        if(compFlag == 1)
+        {
+            decompressLen = mCompCryptor->Decompress(incoming_message->getData() + 1, recvLen - 4, mDecompressPacket->getData() + 1, mDecompressPacket->getMaxPayload() - 4);
+        }
+
+        if(decompressLen > 0)
+        {
+            mDecompressPacket->setIsCompressed(true);
+            mDecompressPacket->setSize(decompressLen + 1); // add the packet header size
+
+            *((uint8*)(mDecompressPacket->getData())) = *((uint8*)incoming_message->getData());
+
+            // send the packet up the stack
+            session->HandleFastpathPacket(mDecompressPacket);
+            mDecompressPacket = mPacketFactory->CreatePacket();
+        }
+        else
+        {
+            // send the packet up the stack, remove comp/crc
+            incoming_message->setSize(incoming_message->getSize() - 3);
+
+            session->HandleFastpathPacket(incoming_message);
+            incoming_message = mPacketFactory->CreatePacket();
+        }
+    }
+}
+
 
 void SocketReadThread::_startup(void)
 {
