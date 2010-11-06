@@ -93,7 +93,6 @@ protected:
     void                          _startup(void);
     void                          _shutdown(void);
 
-    Packet*                       mReceivePacket;
     Packet*                       mDecompressPacket;
 
     uint16						mMessageMaxSize;

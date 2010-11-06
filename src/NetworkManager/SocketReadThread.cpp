@@ -64,14 +64,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 //======================================================================================================================
 
-SocketReadThread::SocketReadThread(SOCKET socket, SocketWriteThread* writeThread, Service* service,uint32 mfHeapSize, bool serverservice) :
-    mReceivePacket(0),
-    mDecompressPacket(0),
-    mSessionFactory(0),
-    mPacketFactory(0),
-    mCompCryptor(0),
-    mSocket(0),
-    mIsRunning(false)
+SocketReadThread::SocketReadThread(SOCKET socket, SocketWriteThread* writeThread, Service* service,uint32 mfHeapSize, bool serverservice) 
+    : mDecompressPacket(0)
+    , mSessionFactory(0)
+    , mPacketFactory(0)
+    , mCompCryptor(0)
+    , mSocket(0)
+    , mIsRunning(false)
 {
     if(serverservice)
     {
@@ -100,7 +99,6 @@ SocketReadThread::SocketReadThread(SOCKET socket, SocketWriteThread* writeThread
     mCompCryptor = new CompCryptor();
 
     // Allocate our receive packets
-    mReceivePacket = mPacketFactory->CreatePacket();
     mDecompressPacket = mPacketFactory->CreatePacket();
 
     // start our thread
@@ -148,11 +146,9 @@ void SocketReadThread::run(void)
     // Call our internal _startup method
     _startup();
 
-    while(!mExit)
-    {
+    while(!mExit) {
         // Check to see if *WE* are about to connect to a remote server
-        if(mNewConnection.mPort != 0)
-        {
+        if(mNewConnection.mPort != 0) {
             LOG(INFO) << "Connecting to remote server";
             Session* newSession = mSessionFactory->CreateSession();
             newSession->setCommand(SCOM_Connect);
@@ -168,16 +164,13 @@ void SocketReadThread::run(void)
             // Add the new session to the main process list
             {
                 boost::mutex::scoped_lock lk(mSocketReadMutex);
-
                 mAddressSessionMap.insert(std::make_pair(hash,newSession));
             }
+
             mSocketWriteThread->NewSession(newSession);
         }
 
         // Reset our internal members so we can use the packet again.
-        mReceivePacket->Reset();
-        mDecompressPacket->Reset();
-
         // Build a new fd_set structure
         FD_SET(mSocket, &socketSet);
 
@@ -187,14 +180,13 @@ void SocketReadThread::run(void)
 
         count = select(mSocket+1, &socketSet, 0, 0, &tv);
 
-        if(count && FD_ISSET(mSocket, &socketSet))
-        {
+        if(count && FD_ISSET(mSocket, &socketSet)) {
             LOG(INFO) << "Message received on port " << port;
             // Read any incoming packets.
-            recvLen = recvfrom(mSocket, mReceivePacket->getData(),(int) mMessageMaxSize, 0, (sockaddr*)&from, reinterpret_cast<socklen_t*>(&fromLen));
+            Packet* incoming_message = mPacketFactory->CreatePacket();
+            recvLen = recvfrom(mSocket, incoming_message->getData(),(int) mMessageMaxSize, 0, (sockaddr*)&from, reinterpret_cast<socklen_t*>(&fromLen));
 
-            if(recvLen <= 0)
-            {
+            if(recvLen <= 0) {
 #if(ANH_PLATFORM == ANH_PLATFORM_WIN32)
 
                 int errorNr = 0;
@@ -202,20 +194,16 @@ void SocketReadThread::run(void)
 
                 char errorMsg[512];
 
-                if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errorNr, MAKELANGID(LANG_NEUTRAL,SUBLANG_DEFAULT),(LPTSTR)errorMsg, (sizeof(errorMsg) / sizeof(TCHAR)) - 1, NULL))
-                {
+                if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errorNr, MAKELANGID(LANG_NEUTRAL,SUBLANG_DEFAULT),(LPTSTR)errorMsg, (sizeof(errorMsg) / sizeof(TCHAR)) - 1, NULL)) {
                     LOG(WARNING) << "Error(recvFrom): " << errorMsg;
-                }
-                else
-                {
+                } else {
                     LOG(WARNING) << "Error(recvFrom): " << errorNr;
                 }
 #endif
                 continue;
             }
 
-            if(recvLen > mMessageMaxSize)
-            {
+            if(recvLen > mMessageMaxSize) {
                 LOG(INFO) << "Socket Read Thread Received Size > mMessageMaxSize: " << recvLen;
             }
 
@@ -224,10 +212,10 @@ void SocketReadThread::run(void)
             port		= from.sin_port;
             
             // Grab our packet type
-            mReceivePacket->Reset();           // Reset our internal members so we can use the packet again.
-            mReceivePacket->setSize(recvLen); // crc is subtracted by the decryption
+            incoming_message->Reset();           // Reset our internal members so we can use the packet again.
+            incoming_message->setSize(recvLen); // crc is subtracted by the decryption
 
-            handleIncomingMessage_(from, recvLen, mReceivePacket);
+            handleIncomingMessage_(from, recvLen, incoming_message);
         }
 
         boost::this_thread::sleep(boost::posix_time::microseconds(10));
@@ -374,7 +362,6 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
 
             // Send the packet to the session.
             session->HandleSessionPacket(incoming_message);
-            incoming_message = mPacketFactory->CreatePacket();
         }
         break;
 
@@ -396,12 +383,9 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
             uint8 crcLow  = (uint8)*(incoming_message->getData() + recvLen - 1);
             uint8 crcHigh = (uint8)*(incoming_message->getData() + recvLen - 2);
 
-            if (crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8))
-            {
+            if (crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8)) {
                 // CRC mismatch.  Dropping packet.
-
-               LOG(INFO) << "Socket Read Thread: Reliable Packet dropped." << packetType << " CRC mismatch.";
-                mCompCryptor->Decrypt(incoming_message->getData() + 2, recvLen - 4, session->getEncryptKey());  // don't hardcode the header buffer or CRC len.
+                LOG(INFO) << "Socket Read Thread: Reliable Packet dropped." << packetType << " CRC mismatch.";
                 return;
             }
 
@@ -437,7 +421,6 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
             // Send the packet to the session.
 
             session->HandleSessionPacket(incoming_message);
-            incoming_message = mPacketFactory->CreatePacket();
         }
         break;
 
@@ -457,8 +440,7 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
         uint8	crcLow		= (uint8)*(incoming_message->getData() + recvLen - 1);
         uint8	crcHigh		= (uint8)*(incoming_message->getData() + recvLen - 2);
 
-        if(crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8))
-        {
+        if(crcLow != (uint8)packetCrc || crcHigh != (uint8)(packetCrc >> 8)) {
             // CRC mismatch.  Dropping packet.
             LOG(INFO) << "Packet dropped.  CRC mismatch.";
             return;
@@ -471,13 +453,11 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
         decompressLen	= 0;
         uint8 compFlag	= (uint8)*(incoming_message->getData() + recvLen - 3);
 
-        if(compFlag == 1)
-        {
+        if(compFlag == 1) {
             decompressLen = mCompCryptor->Decompress(incoming_message->getData() + 1, recvLen - 4, mDecompressPacket->getData() + 1, mDecompressPacket->getMaxPayload() - 4);
         }
 
-        if(decompressLen > 0)
-        {
+        if(decompressLen > 0) {
             mDecompressPacket->setIsCompressed(true);
             mDecompressPacket->setSize(decompressLen + 1); // add the packet header size
 
@@ -486,14 +466,11 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
             // send the packet up the stack
             session->HandleFastpathPacket(mDecompressPacket);
             mDecompressPacket = mPacketFactory->CreatePacket();
-        }
-        else
-        {
+        } else {
             // send the packet up the stack, remove comp/crc
             incoming_message->setSize(incoming_message->getSize() - 3);
 
             session->HandleFastpathPacket(incoming_message);
-            incoming_message = mPacketFactory->CreatePacket();
         }
     }
 }
