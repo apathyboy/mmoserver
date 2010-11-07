@@ -28,14 +28,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef ANH_NETWORKMANAGER_SOCKETREADTHREAD_H
 #define ANH_NETWORKMANAGER_SOCKETREADTHREAD_H
 
-#include "Utils/typedefs.h"
+#include <cstdint>
+#include <list>
+#include <map>
+#include <string>
 
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
-#include <list>
-#include <map>
+#include <boost/thread/future.hpp>
 
-//======================================================================================================================
+#include "Utils/ActiveObject.h"
+#include "Utils/typedefs.h"
 
 class SocketWriteThread;
 class PacketFactory;
@@ -46,79 +49,66 @@ class Session;
 class Service;
 class Packet;
 
-//======================================================================================================================
-
 typedef std::list<Session*>			SessionList;
 typedef std::map<uint64,Session*>	AddressSessionMap;
 
-
-//======================================================================================================================
-
-class NewConnection
-{
+struct NewConnection {
 public:
-
     int8              mAddress[256];
     uint16            mPort;
     Session*          mSession;
 };
 
-//======================================================================================================================
-
-class SocketReadThread
-{
+class SocketReadThread {
 public:
     SocketReadThread(SOCKET socket, SocketWriteThread* writeThread, Service* service,uint32 mfHeapSize, bool serverservice);
     ~SocketReadThread();
 
-    virtual void					run();
+    void run();
 
-    void                          NewOutgoingConnection(int8* address, uint16 port);
-    void                          RemoveAndDestroySession(Session* session);
+    boost::shared_future<Session*> createOutgoingConnection(const std::string& address, uint16_t port);
 
-    NewConnection*                getNewConnectionInfo(void)  {
+    void RemoveAndDestroySession(Session* session);
+
+    NewConnection* getNewConnectionInfo(void) {
         return &mNewConnection;
-    };
-    bool                          getIsRunning(void)          {
+    }
+
+    bool getIsRunning(void) {
         return mIsRunning;
     }
-    void							requestExit()				{
+
+    void requestExit() {
         mExit = true;
     }
 
 protected:
-
     void handleIncomingMessage_(struct sockaddr_in from, uint16_t recvLen, Packet* incoming_message);
 
-    void                          _startup(void);
-    void                          _shutdown(void);
+    void _startup();
+    void _shutdown();
+    
+    utils::ActiveObject active_;
 
-    Packet*                       mDecompressPacket;
+    uint16 mMessageMaxSize;
+    SessionFactory* mSessionFactory;
+    SocketWriteThread* mSocketWriteThread;
+    PacketFactory* mPacketFactory;
+    MessageFactory* mMessageFactory;
+    CompCryptor* mCompCryptor;
+    NewConnection mNewConnection;
 
-    uint16						mMessageMaxSize;
-    SocketWriteThread*            mSocketWriteThread;
-    SessionFactory*               mSessionFactory;
-    PacketFactory*                mPacketFactory;
-    MessageFactory*               mMessageFactory;
-    CompCryptor*                  mCompCryptor;
-    NewConnection                 mNewConnection;
+    SOCKET mSocket;
 
-    SOCKET                        mSocket;
+    bool mIsRunning;
 
-    bool							mIsRunning;
+    uint32 mSessionResendWindowSize;
 
-    uint32						mSessionResendWindowSize;
+    boost::thread mThread;
+    boost::mutex mSocketReadMutex;
+    AddressSessionMap mAddressSessionMap;
 
-    boost::thread 				mThread;
-    boost::mutex					mSocketReadMutex;
-    AddressSessionMap             mAddressSessionMap;
-
-    bool							mExit;
+    bool mExit;
 };
 
-//======================================================================================================================
-
 #endif //ANH_NETWORKMANAGER_SOCKETREADTHREAD_H
-
-
-

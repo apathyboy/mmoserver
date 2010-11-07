@@ -39,25 +39,24 @@ typedef boost::pool<boost::default_user_allocator_malloc_free> PacketPool;
 
 //======================================================================================================================
 
-class PacketFactory
-{
+class PacketFactory {
 public:
 
     PacketFactory(bool serverservice);
-    ~PacketFactory(void);
+    ~PacketFactory();
 
-    void		Process(void);
+    void Process();
 
-    Packet*		CreatePacket(void);
-    void		DestroyPacket(Packet* packet);
+    Packet* CreatePacket();
+    void DestroyPacket(Packet* packet);
 
-    uint16		mMaxPayLoad;
+    uint16 mMaxPayLoad;
 
 private:
-    uint32							mPacketCount;
+    uint32 mPacketCount;
 
-    PacketPool						mPacketPool;
-    boost::recursive_mutex			mPacketFactoryMutex;
+    PacketPool mPacketPool;
+    boost::recursive_mutex mPacketFactoryMutex;
 };
 
 //======================================================================================================================

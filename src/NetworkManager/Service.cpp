@@ -309,33 +309,18 @@ void Service::Process()
 
 //======================================================================================================================
 
-void Service::Connect(NetworkClient* client, int8* address, uint16 port)
-{
+void Service::Connect(NetworkClient* client, int8* address, uint16 port) {
+    LOG(INFO) << "New connection to " << address << " on port " << port;
 
-	LOG(INFO) << "New connection to " << address << " on port " << port;
+    boost::shared_future<Session*> result = mSocketReadThread->createOutgoingConnection(address, port);
+    Session* session = result.get();
 
-    // Setup our new connection object and pass it to SocketReadThread.  This is temporary until there is time to implemnt
-    // a queue/async connect method.  FIXME:  Make queue based, async using NetworkCallback for status changes.
-
-    // We want this to be a blocking call for now, so loop waiting for change in session status from Connecting.
-    mSocketReadThread->NewOutgoingConnection(address, port);
-
-    // don't want a hard loop pegging the cpu.
-    while(1)
-    {
-        if(mSocketReadThread->getNewConnectionInfo()->mSession)
-        {
-            if(mSocketReadThread->getNewConnectionInfo()->mSession->getStatus() == SSTAT_Connected)
-            {
-                break;
-            }
-        }
-
+    while(session->getStatus() != SSTAT_Connected) {
         boost::this_thread::sleep(boost::posix_time::milliseconds(10));
     }
 
-    client->setSession(mSocketReadThread->getNewConnectionInfo()->mSession);
-    mSocketReadThread->getNewConnectionInfo()->mSession->setClient(client);
+    client->setSession(session);
+    session->setClient(client);
 }
 
 //======================================================================================================================
