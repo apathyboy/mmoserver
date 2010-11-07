@@ -65,8 +65,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 //======================================================================================================================
 
 SocketReadThread::SocketReadThread(SOCKET socket, SocketWriteThread* writeThread, Service* service,uint32 mfHeapSize, bool serverservice) 
-    : mDecompressPacket(0)
-    , mSessionFactory(0)
+    : mSessionFactory(0)
     , mPacketFactory(0)
     , mCompCryptor(0)
     , mSocket(0)
@@ -97,10 +96,7 @@ SocketReadThread::SocketReadThread(SOCKET socket, SocketWriteThread* writeThread
     mSessionFactory = new SessionFactory(writeThread, service, mPacketFactory, mMessageFactory, serverservice);
 
     mCompCryptor = new CompCryptor();
-
-    // Allocate our receive packets
-    mDecompressPacket = mPacketFactory->CreatePacket();
-
+    
     // start our thread
     boost::thread t(std::tr1::bind(&SocketReadThread::run, this));
     mThread = boost::move(t);
@@ -147,29 +143,6 @@ void SocketReadThread::run(void)
     _startup();
 
     while(!mExit) {
-        // Check to see if *WE* are about to connect to a remote server
-        if(mNewConnection.mPort != 0) {
-            LOG(INFO) << "Connecting to remote server";
-            Session* newSession = mSessionFactory->CreateSession();
-            newSession->setCommand(SCOM_Connect);
-            newSession->setAddress(inet_addr(mNewConnection.mAddress));
-            newSession->setPort(htons(mNewConnection.mPort));
-            newSession->setResendWindowSize(mSessionResendWindowSize);
-
-            uint64 hash = newSession->getAddress() | (((uint64)newSession->getPort()) << 32);
-
-            mNewConnection.mSession = newSession;
-            mNewConnection.mPort = 0;
-
-            // Add the new session to the main process list
-            {
-                boost::mutex::scoped_lock lk(mSocketReadMutex);
-                mAddressSessionMap.insert(std::make_pair(hash,newSession));
-            }
-
-            mSocketWriteThread->NewSession(newSession);
-        }
-
         // Reset our internal members so we can use the packet again.
         // Build a new fd_set structure
         FD_SET(mSocket, &socketSet);
@@ -181,7 +154,7 @@ void SocketReadThread::run(void)
         count = select(mSocket+1, &socketSet, 0, 0, &tv);
 
         if(count && FD_ISSET(mSocket, &socketSet)) {
-            LOG(INFO) << "Message received on port " << port;
+            LOG(WARNING) << "Message received on port " << port;
             // Read any incoming packets.
             Packet* incoming_message = mPacketFactory->CreatePacket();
             recvLen = recvfrom(mSocket, incoming_message->getData(),(int) mMessageMaxSize, 0, (sockaddr*)&from, reinterpret_cast<socklen_t*>(&fromLen));
@@ -225,19 +198,31 @@ void SocketReadThread::run(void)
     _shutdown();
 }
 
-//======================================================================================================================
 
-void SocketReadThread::NewOutgoingConnection(int8* address, uint16 port)
-{
-    // This will only handle a single connect call at a time right now.  At some point it would be good to make this a
-    // queue so we can process these async.  This is NOT thread safe, and won't be.  Only should be called by the Service.
+boost::shared_future<Session*> SocketReadThread::createOutgoingConnection(const std::string& address, uint16_t port) {
+    auto p = std::make_shared<boost::promise<Session*>>();
+    boost::shared_future<Session*> ret(p->get_future());
 
-    // Init our NewConnection object
-    LOG(INFO) << "New connection to " << address << " on port " << port;
-    strcpy(mNewConnection.mAddress, address);
-    mNewConnection.mPort = port;
-    mNewConnection.mSession = 0;
+    active_.Send([=] {
+        LOG(INFO) << "Connecting to remote server";
+
+        Session* newSession = mSessionFactory->CreateSession();
+        newSession->setCommand(SCOM_Connect);
+        newSession->setAddress(inet_addr(address.c_str()));
+        newSession->setPort(htons(port));
+        newSession->setResendWindowSize(mSessionResendWindowSize);
+
+        uint64 hash = newSession->getAddress() | (((uint64)newSession->getPort()) << 32);
+        mAddressSessionMap.insert(std::make_pair(hash,newSession));
+
+        mSocketWriteThread->NewSession(newSession);
+
+        p->set_value(newSession);
+    });
+
+    return ret;
 }
+
 
 //======================================================================================================================
 
@@ -393,15 +378,15 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
             mCompCryptor->Decrypt(incoming_message->getData() + 2, recvLen - 4, session->getEncryptKey());  // don't hardcode the header buffer or CRC len.
 
             // Decompress the packet
-            decompressLen = mCompCryptor->Decompress(incoming_message->getData() + 2, recvLen - 5, mDecompressPacket->getData() + 2, mDecompressPacket->getMaxPayload() - 5);
+            Packet* decompressed_packet = mPacketFactory->CreatePacket();
+            decompressLen = mCompCryptor->Decompress(incoming_message->getData() + 2, recvLen - 5, decompressed_packet->getData() + 2, decompressed_packet->getMaxPayload() - 5);
 
             if(decompressLen > 0)
             {
-                mDecompressPacket->setIsCompressed(true);
-                mDecompressPacket->setSize(decompressLen + 2); // add the packet header size
-                *((uint16*)(mDecompressPacket->getData())) = *((uint16*)incoming_message->getData());
-                session->HandleSessionPacket(mDecompressPacket);
-                mDecompressPacket = mPacketFactory->CreatePacket();
+                decompressed_packet->setIsCompressed(true);
+                decompressed_packet->setSize(decompressLen + 2); // add the packet header size
+                *((uint16*)(decompressed_packet->getData())) = *((uint16*)incoming_message->getData());
+                session->HandleSessionPacket(decompressed_packet);
 
                 break;
             }
@@ -452,24 +437,23 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
         // Decompress the packet
         decompressLen	= 0;
         uint8 compFlag	= (uint8)*(incoming_message->getData() + recvLen - 3);
+        Packet* decompressed_packet = mPacketFactory->CreatePacket();
 
         if(compFlag == 1) {
-            decompressLen = mCompCryptor->Decompress(incoming_message->getData() + 1, recvLen - 4, mDecompressPacket->getData() + 1, mDecompressPacket->getMaxPayload() - 4);
+            decompressLen = mCompCryptor->Decompress(incoming_message->getData() + 1, recvLen - 4, decompressed_packet->getData() + 1, decompressed_packet->getMaxPayload() - 4);
         }
 
         if(decompressLen > 0) {
-            mDecompressPacket->setIsCompressed(true);
-            mDecompressPacket->setSize(decompressLen + 1); // add the packet header size
+            decompressed_packet->setIsCompressed(true);
+            decompressed_packet->setSize(decompressLen + 1); // add the packet header size
 
-            *((uint8*)(mDecompressPacket->getData())) = *((uint8*)incoming_message->getData());
+            *((uint8*)(decompressed_packet->getData())) = *((uint8*)incoming_message->getData());
 
             // send the packet up the stack
-            session->HandleFastpathPacket(mDecompressPacket);
-            mDecompressPacket = mPacketFactory->CreatePacket();
+            session->HandleFastpathPacket(decompressed_packet);
         } else {
             // send the packet up the stack, remove comp/crc
             incoming_message->setSize(incoming_message->getSize() - 3);
-
             session->HandleFastpathPacket(incoming_message);
         }
     }
