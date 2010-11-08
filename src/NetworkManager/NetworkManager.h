@@ -28,7 +28,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef ANH_NETWORKMANAGER_NETWORKMANAGER_H
 #define ANH_NETWORKMANAGER_NETWORKMANAGER_H
 
+#include <memory>
 #include <queue>
+#include <vector>
+
+#include <boost/asio/io_service.hpp>
+#include <boost/thread/thread.hpp>
+
+#include <tbb/concurrent_queue.h>
+
 #include "Utils/concurrent_queue.h"
 #include "Utils/typedefs.h"
 #include "Service.h"
@@ -42,53 +50,38 @@ class Session;
 
 //======================================================================================================================
 
-typedef Anh_Utils::concurrent_queue<Service*>	ServiceQueue;
+typedef tbb::concurrent_queue<Service*> ServiceQueue;
 
 //======================================================================================================================
 
-class NetworkManager
-{
+class NetworkManager {
 public:
 
     NetworkManager(void);
     ~NetworkManager(void);
+    
+    boost::asio::io_service& io_service();
 
-    void		Process(void);
+    void		Process();
 
     Service*	GenerateService(int8* address, uint16 port,uint32 mfHeapSize, bool serverservice);
     void		DestroyService(Service* service);
-    Client*		Connect(void);
+    Client*		Connect();
 
     void		RegisterCallback(NetworkCallback* callback);
     void		UnregisterCallback(NetworkCallback* callback);
 
     void		AddServiceToProcessQueue(Service* service);
+    
+private:    
+    boost::asio::io_service io_service_;
+    std::unique_ptr<boost::asio::io_service::work> io_work_;
 
-private:
+    std::vector<boost::thread> worker_threads_;
 
     ServiceQueue		mServiceProcessQueue;
 
     uint32			mServiceIdIndex;
 };
 
-
-//=====================================================================================================================
-
-inline void NetworkManager::AddServiceToProcessQueue(Service* service)
-{
-    if(!service->isQueued())
-    {
-        service->setQueued(true);
-
-        mServiceProcessQueue.push(service);
-    }
-}
-
-//======================================================================================================================
-
 #endif // ANH_NETWORKMANAGER_NETWORKMANAGER_H
-
-
-
-
-

@@ -28,10 +28,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef ANH_NETWORKMANAGER_SERVICE_H
 #define ANH_NETWORKMANAGER_SERVICE_H
 
+#include <list>
+
+#include <boost/asio.hpp>
+#include <boost/thread/thread.hpp>
+
 #include "Utils/typedefs.h"
 #include "Utils/concurrent_queue.h"
-
-#include <list>
 
 
 //======================================================================================================================
@@ -86,7 +89,6 @@ public:
     }
 
 private:
-
     NetworkCallback*		mCallBack;
     //NetworkCallbackList		mNetworkCallbackList;
 

@@ -32,13 +32,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
+#include <boost/asio.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/future.hpp>
 
 #include "Utils/ActiveObject.h"
 #include "Utils/typedefs.h"
+
+#define SEND_BUFFER_SIZE 8192
 
 class SocketWriteThread;
 class PacketFactory;
@@ -52,28 +56,18 @@ class Packet;
 typedef std::list<Session*>			SessionList;
 typedef std::map<uint64,Session*>	AddressSessionMap;
 
-struct NewConnection {
-public:
-    int8              mAddress[256];
-    uint16            mPort;
-    Session*          mSession;
-};
-
 class SocketReadThread {
 public:
-    SocketReadThread(SOCKET socket, SocketWriteThread* writeThread, Service* service,uint32 mfHeapSize, bool serverservice);
+    SocketReadThread(boost::asio::io_service& io_service, uint16_t port, SocketWriteThread* write_thread, Service* service, uint32_t mf_heap_size, bool server_service);
+    
     ~SocketReadThread();
-
-    void run();
-
+    
     boost::shared_future<Session*> createOutgoingConnection(const std::string& address, uint16_t port);
+            
+    void sendPacket(Packet* packet, Session* session);
 
     void RemoveAndDestroySession(Session* session);
-
-    NewConnection* getNewConnectionInfo(void) {
-        return &mNewConnection;
-    }
-
+    
     bool getIsRunning(void) {
         return mIsRunning;
     }
@@ -83,20 +77,26 @@ public:
     }
 
 protected:
-    void handleIncomingMessage_(struct sockaddr_in from, uint16_t recvLen, Packet* incoming_message);
+    void asyncReceive_();
+    void handleIncomingMessage_(const boost::system::error_code& error, size_t bytes_received);
+    void handleIncomingMessage_(const std::string& address, uint16_t port, uint16_t recvLen, Packet* incoming_message);
 
     void _startup();
     void _shutdown();
     
     utils::ActiveObject active_;
-
+    
+    boost::asio::ip::udp::endpoint remote_endpoint_;   //Storage for Current Client
+    boost::asio::ip::udp::socket socket_;
+    std::vector<int8> receive_buffer_;
+    
+    int8				mSendBuffer[SEND_BUFFER_SIZE];
     uint16 mMessageMaxSize;
     SessionFactory* mSessionFactory;
     SocketWriteThread* mSocketWriteThread;
     PacketFactory* mPacketFactory;
     MessageFactory* mMessageFactory;
     CompCryptor* mCompCryptor;
-    NewConnection mNewConnection;
 
     SOCKET mSocket;
 
@@ -104,7 +104,7 @@ protected:
 
     uint32 mSessionResendWindowSize;
 
-    boost::thread mThread;
+    boost::thread thread_;
     boost::mutex mSocketReadMutex;
     AddressSessionMap mAddressSessionMap;
 

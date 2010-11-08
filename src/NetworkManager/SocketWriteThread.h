@@ -42,6 +42,7 @@ class Service;
 class Packet;
 class Session;
 class CompCryptor;
+class SocketReadThread;
 
 typedef Anh_Utils::concurrent_queue<Session*>    SessionQueue;
 
@@ -51,7 +52,7 @@ class SocketWriteThread
 {
 public:
 
-    SocketWriteThread(SOCKET socket, Service* service, bool serverservice);
+    SocketWriteThread(Service* service, bool serverservice);
     ~SocketWriteThread();
 
     virtual void	run();
@@ -65,6 +66,8 @@ public:
         mExit = true;
     }
 
+    void setSocket(SocketReadThread* socket_thread);
+
 private:
 
     void			_startup(void);
@@ -73,12 +76,12 @@ private:
     void			_sendPacket(Packet* packet, Session* session);
 
     //void				*mtheHandle;
+    SocketReadThread* socket_thread_;
 
     uint16				mMessageMaxSize;
     int8				mSendBuffer[SEND_BUFFER_SIZE];
     Service*			mService;
     CompCryptor*		mCompCryptor;
-    SOCKET				mSocket;
     bool				mIsRunning;
     uint64			    mLastTime;
     uint64			    mLastThreadTime;

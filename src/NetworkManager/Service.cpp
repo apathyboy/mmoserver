@@ -27,6 +27,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "Service.h"
 
+#ifdef ERROR
+#undef ERROR
+#endif
 #include <glog/logging.h>
 
 #include "NetworkCallback.h"
@@ -46,19 +49,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <boost/thread/thread.hpp>
 
-#if defined(_MSC_VER)
-#ifndef _WINSOCK2API_
-#include <WINSOCK2.h>
-#endif
-#else
-#include <sys/socket.h>
-#include <arpa/inet.h>
-
-#define INVALID_SOCKET	-1
-#define SOCKET_ERROR	-1
-#define closesocket		close
-#endif
-
 #include <cassert>
 #include <cstdio>
 
@@ -70,17 +60,17 @@ bool Service::mSocketsSubsystemInitComplete = false;
 
 //======================================================================================================================
 
-Service::Service(NetworkManager* networkManager, bool serverservice, uint32 id, int8* localAddress, uint16 localPort,uint32 mfHeapSize) :
-    mNetworkManager(networkManager),
-    mSocketReadThread(0),
-    mSocketWriteThread(0),
-    mLocalSocket(0),
-    avgTime(0),
-    avgPacketsbuild (0),
-    mLocalAddress(0),
-    mLocalPort(0),
-    mQueued(false),
-    mServerService(serverservice)
+Service::Service(NetworkManager* networkManager, bool serverservice, uint32 id, int8* localAddress, uint16 localPort,uint32 mfHeapSize) 
+    : mNetworkManager(networkManager)
+    , mSocketReadThread(0)
+    , mSocketWriteThread(0)
+    , mLocalSocket(0)
+    , avgTime(0)
+    , avgPacketsbuild (0)
+    , mLocalAddress(0)
+    , mLocalPort(0)
+    , mQueued(false)
+    , mServerService(serverservice)
 {
     mCallBack = NULL;
     mId = id;
@@ -92,80 +82,14 @@ Service::Service(NetworkManager* networkManager, bool serverservice, uint32 id, 
     mLocalAddress = inet_addr(localAddress);
     mLocalPort = htons(localPort);
 
-#if(ANH_PLATFORM == ANH_PLATFORM_WIN32)
-    // Startup the windows socket layer if it's not already started.
-    if (!mSocketsSubsystemInitComplete)
-    {
-        mSocketsSubsystemInitComplete = true;
-        WSADATA data;
-        WSAStartup(MAKEWORD(2,0), &data);
-    }
-#endif //WIN32
-
-    // Create our socket descriptors
-    SOCKET mLocalSocket = socket(PF_INET, SOCK_DGRAM, 0);
-
-    // Bind to our listen port.
-    sockaddr_in   server;
-    server.sin_family   = AF_INET;
-    server.sin_port     = mLocalPort;
-    server.sin_addr.s_addr = INADDR_ANY;
-
-    // Attempt to bind to our socket
-    bind(mLocalSocket, (struct sockaddr*)&server, sizeof(server));
-
-    // We need to call connect on the socket to an address before we can know which address we have.
-    // The address specified in the connect call determines which interface our socket is associated with
-    // based on routing.  1.1.1.1 should give us the default adaptor.  Not sure what to do one multihomed hosts yet.
-//	struct sockaddr   toAddr;
-//	int32             sent, toLen = sizeof(toAddr);
-    /*
-        toAddr.sa_family = AF_INET;
-        *((uint32*)&toAddr.sa_data[2]) = 0;
-        *((uint16*)&(toAddr.sa_data[0])) = 0;
-
-        // This connect will make the socket only acceept packets from the destination.  Need to reset at end.
-        //sent = sendto(mLocalSocket, mSendBuffer, 1, 0, &toAddr, toLen);
-        sent = connect(mLocalSocket, &toAddr, toLen);
-    */
-    //set the socketbuffer so we dont suffer internal dataloss
-    int value;
-    int valuelength = sizeof(value);
-    value = 524288;
-    int configvalue = gConfig->read<int32>("UDPBufferSize",4096);
-    //gLogger->log(LogManager::INFORMATION, "UDPBuffer set to %ukb", configvalue);
-    LOG(INFO) << "UDP buffer size set to " << configvalue << "kb";
-    
-    if(configvalue < 128)
-        configvalue = 128;
-
-    if(configvalue > 8192)
-        configvalue = 8192;
-
-    value = configvalue *1024;
-
-    setsockopt(mLocalSocket,SOL_SOCKET,SO_RCVBUF,(char*)&value,valuelength);
-
-    int temp = 1;
-    //9 is IP_DONTFRAG (PK told me to put that here so we know wtf 9 means :P
-    setsockopt(mLocalSocket, IPPROTO_IP, 9, (char*)&temp, sizeof(temp));
-
-
     // Create our read/write socket classes
-    mSocketWriteThread = new SocketWriteThread(mLocalSocket,this,mServerService);
-    mSocketReadThread = new SocketReadThread(mLocalSocket, mSocketWriteThread,this,mfHeapSize, mServerService);
+    mSocketWriteThread = new SocketWriteThread(this, mServerService);
+    //mSocketReadThread = new SocketReadThread(mLocalSocket, mSocketWriteThread,this,mfHeapSize, mServerService);
+    mSocketReadThread = new SocketReadThread(mNetworkManager->io_service(), localPort, mSocketWriteThread, this, mfHeapSize, mServerService);
+    mSocketWriteThread->setSocket(mSocketReadThread);
 
-    // Query the stack for the actual address and port we got and store it in the service.
-    //getsockname(mLocalSocket, (sockaddr*)&server, &serverLen);
-    //mLocalAddress = server.sin_addr.s_addr;
-    //mLocalPort = server.sin_port;
-    /*
-        // Reset the connect call to universe.
-        toAddr.sa_family = AF_INET;
-        *((uint32*)&toAddr.sa_data[2]) = 0;
-        *((uint16*)&(toAddr.sa_data[0])) = 0;
-        sent = connect(mLocalSocket, &toAddr, toLen);
-    */
+    //boost::thread io_thread(std::bind(&boost::asio::io_service::run, &io_service_));
+    //io_thread_ = std::move(io_thread);
 }
 
 //======================================================================================================================
@@ -186,13 +110,6 @@ Service::~Service(void)
 
     delete mSocketWriteThread;
     delete mSocketReadThread;
-
-    closesocket(mLocalSocket);
-    mLocalSocket = INVALID_SOCKET;
-
-#if(ANH_PLATFORM == ANH_PLATFORM_WIN32)
-    WSACleanup();
-#endif
 }
 
 //======================================================================================================================

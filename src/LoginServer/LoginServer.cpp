@@ -27,6 +27,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "LoginServer.h"
 
+#ifdef _WIN32
+#include <WinSock2.h>
+#endif
+
 // Fix for issues with glog redefining this constant
 #ifdef ERROR
 #undef ERROR

@@ -27,32 +27,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "SocketReadThread.h"
 
+#ifdef ERROR
+#undef ERROR
+#endif
 #include <glog/logging.h>
-
-#include "CompCryptor.h"
-#include "NetworkClient.h"
-#include "Packet.h"
-#include "PacketFactory.h"
-#include "Service.h"
-#include "Session.h"
-#include "SessionFactory.h"
-#include "Socket.h"
-#include "SocketWriteThread.h"
-
-#include "NetworkManager/MessageFactory.h"
 
 #include <boost/thread/thread.hpp>
 
-#if defined(__GNUC__)
-// GCC implements tr1 in the <tr1/*> headers. This does not conform to the TR1
-// spec, which requires the header without the tr1/ prefix.
-#include <tr1/functional>
-#else
 #include <functional>
-#endif
 
 #if defined(_MSC_VER)
-#define socklen_t int
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -62,60 +46,64 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define closesocket		close
 #endif
 
+#include "Service.h"
+#include "CompCryptor.h"
+#include "NetworkClient.h"
+#include "Packet.h"
+#include "PacketFactory.h"
+#include "Session.h"
+#include "SessionFactory.h"
+#include "Socket.h"
+#include "SocketWriteThread.h"
+
+#include "NetworkManager/MessageFactory.h"
+
+#define RECEIVE_BUFFER 4096
 //======================================================================================================================
 
-SocketReadThread::SocketReadThread(SOCKET socket, SocketWriteThread* writeThread, Service* service,uint32 mfHeapSize, bool serverservice) 
-    : mSessionFactory(0)
-    , mPacketFactory(0)
-    , mCompCryptor(0)
+SocketReadThread::SocketReadThread(
+    boost::asio::io_service& io_service,
+    uint16_t port,
+    SocketWriteThread* write_thread,
+    Service* service,
+    uint32_t mf_heap_size,
+    bool server_service)
+    : socket_(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), port))
+    , receive_buffer_(RECEIVE_BUFFER)
+    , mSessionFactory(nullptr)
+    , mSocketWriteThread(write_thread)
+    , mPacketFactory(nullptr)
+    , mCompCryptor(nullptr)
     , mSocket(0)
     , mIsRunning(false)
-{
-    if(serverservice)
-    {
+{   
+    if(server_service) {
         mMessageMaxSize = gNetConfig->getServerServerReliableSize();
         mSessionResendWindowSize = gNetConfig->getServerPacketWindow();
-    }
-    else
-    {
+    } else {
         mMessageMaxSize = gNetConfig->getServerClientReliableSize();
         mSessionResendWindowSize = gNetConfig->getClientPacketWindow();
-    }
-
-    mSocket = socket;
-    mSocketWriteThread = writeThread;
-
-    // Init our NewConnection object
-    memset(mNewConnection.mAddress, 0, sizeof(mNewConnection.mAddress));
-    mNewConnection.mPort = 0;
-    mNewConnection.mSession = 0;
-
+    } 
+    
     // Startup our factories
-    mMessageFactory = new MessageFactory(mfHeapSize,service->getId());
-    mPacketFactory	= new PacketFactory(serverservice);
-    mSessionFactory = new SessionFactory(writeThread, service, mPacketFactory, mMessageFactory, serverservice);
+    mMessageFactory = new MessageFactory(mf_heap_size,service->getId());
+    mPacketFactory	= new PacketFactory(server_service);
+    mSessionFactory = new SessionFactory(write_thread, service, mPacketFactory, mMessageFactory, server_service);
 
     mCompCryptor = new CompCryptor();
-    
-    // start our thread
-    boost::thread t(std::tr1::bind(&SocketReadThread::run, this));
-    mThread = boost::move(t);
 
-#ifdef _WIN32
-    HANDLE th =  mThread.native_handle();
-    SetPriorityClass(th,REALTIME_PRIORITY_CLASS);
-#endif
-    //SetPriorityClass(th,NORMAL_PRIORITY_CLASS);
+    LOG(WARNING) << "Listening on port [" << port << "]";
+    
+    _startup();
+    asyncReceive_();
 }
 
 //======================================================================================================================
 
 SocketReadThread::~SocketReadThread()
 {
+    _shutdown();
     mExit = true;
-
-    mThread.interrupt();
-    mThread.join();
 
     delete mPacketFactory;
     delete mSessionFactory;
@@ -123,79 +111,6 @@ SocketReadThread::~SocketReadThread()
     delete mMessageFactory;
 
     delete mCompCryptor;
-}
-
-//======================================================================================================================
-
-void SocketReadThread::run(void)
-{
-    struct sockaddr_in  from;
-    uint32              address, fromLen = sizeof(from), count;
-    int16               recvLen = 0;
-    uint16              port = 0;
-    uint16              decompressLen = 0;
-    fd_set              socketSet;
-    struct              timeval tv;
-
-    FD_ZERO(&socketSet);
-
-    // Call our internal _startup method
-    _startup();
-
-    while(!mExit) {
-        // Reset our internal members so we can use the packet again.
-        // Build a new fd_set structure
-        FD_SET(mSocket, &socketSet);
-
-        // We're going to block for 250ms.
-        tv.tv_sec   = 0;
-        tv.tv_usec  = 250;
-
-        count = select(mSocket+1, &socketSet, 0, 0, &tv);
-
-        if(count && FD_ISSET(mSocket, &socketSet)) {
-            LOG(WARNING) << "Message received on port " << port;
-            // Read any incoming packets.
-            Packet* incoming_message = mPacketFactory->CreatePacket();
-            recvLen = recvfrom(mSocket, incoming_message->getData(),(int) mMessageMaxSize, 0, (sockaddr*)&from, reinterpret_cast<socklen_t*>(&fromLen));
-
-            if(recvLen <= 0) {
-#if(ANH_PLATFORM == ANH_PLATFORM_WIN32)
-
-                int errorNr = 0;
-                errorNr = WSAGetLastError();
-
-                char errorMsg[512];
-
-                if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errorNr, MAKELANGID(LANG_NEUTRAL,SUBLANG_DEFAULT),(LPTSTR)errorMsg, (sizeof(errorMsg) / sizeof(TCHAR)) - 1, NULL)) {
-                    LOG(WARNING) << "Error(recvFrom): " << errorMsg;
-                } else {
-                    LOG(WARNING) << "Error(recvFrom): " << errorNr;
-                }
-#endif
-                continue;
-            }
-
-            if(recvLen > mMessageMaxSize) {
-                LOG(INFO) << "Socket Read Thread Received Size > mMessageMaxSize: " << recvLen;
-            }
-
-            // Get our remote Address and port
-            address		= from.sin_addr.s_addr;
-            port		= from.sin_port;
-            
-            // Grab our packet type
-            incoming_message->Reset();           // Reset our internal members so we can use the packet again.
-            incoming_message->setSize(recvLen); // crc is subtracted by the decryption
-
-            handleIncomingMessage_(from, recvLen, incoming_message);
-        }
-
-        boost::this_thread::sleep(boost::posix_time::microseconds(10));
-    }
-
-    // Shutdown internally
-    _shutdown();
 }
 
 
@@ -224,10 +139,112 @@ boost::shared_future<Session*> SocketReadThread::createOutgoingConnection(const 
 }
 
 
+void SocketReadThread::sendPacket(Packet* packet, Session* session) { active_.Send([=] {
+    struct sockaddr     toAddr;
+    uint32              toLen = sizeof(toAddr), outLen;
+
+    packet->setReadIndex(0);
+    uint16 packetType = packet->getUint16();
+    uint8  packetTypeLow = *(packet->getData());
+    //uint8  packetTypeHigh = *(packet->getData()+1);
+
+    // Set our TimeSent
+    packet->setTimeSent(Anh_Utils::Clock::getSingleton()->getStoredTime());
+
+    // Setup our to address
+    toAddr.sa_family = AF_INET;
+    *((unsigned int*)&toAddr.sa_data[2]) = session->getAddress();     // Ports and addresses are stored in network order.
+    *((unsigned short*)&(toAddr.sa_data[0])) = session->getPort();    // Only need to convert for humans.
+
+    // Copy our 2 byte header.
+    *((uint16*)mSendBuffer) = *((uint16*)packet->getData());
+
+    // Compress the packet if needed.
+    if(packet->getIsCompressed())
+    {
+        if(packetTypeLow == 0)
+        {
+            // Compress our packet, but not the header
+            outLen = mCompCryptor->Compress(packet->getData() + 2, packet->getSize() - 2, mSendBuffer + 2, sizeof(mSendBuffer));
+        }
+        else
+        {
+            outLen = mCompCryptor->Compress(packet->getData() + 1, packet->getSize() - 1, mSendBuffer + 1, sizeof(mSendBuffer));
+        }
+
+        // If we compressed it, place a 1 at the end of the buffer.
+        if(outLen)
+        {
+            if(packetTypeLow == 0)
+            {
+                mSendBuffer[outLen + 2] = 1;
+                outLen += 3;  //thats 2 (uncompressed) headerbytes plus the encryption flag
+            }
+            else
+            {
+                mSendBuffer[outLen + 1] = 1;
+                outLen += 2;
+            }
+        }
+        // else a 0 - so no compression
+        else
+        {
+            memcpy(mSendBuffer, packet->getData(), packet->getSize());
+            outLen = packet->getSize();
+
+            mSendBuffer[outLen] = 0;
+            outLen += 1;
+        }
+    }
+    else if(packetType == SESSIONOP_SessionResponse || packetType == SESSIONOP_CriticalError)
+    {
+        memcpy(mSendBuffer, packet->getData(), packet->getSize());
+        outLen = packet->getSize();
+    }
+    else
+    {
+        memcpy(mSendBuffer, packet->getData(), packet->getSize());
+        outLen = packet->getSize();
+
+        mSendBuffer[outLen] = 0;
+        outLen += 1;
+    }
+
+    // Encrypt the packet if needed.
+    if(packet->getIsEncrypted())
+    {
+        if(packetTypeLow == 0)
+        {
+            mCompCryptor->Encrypt(mSendBuffer + 2, outLen - 2, session->getEncryptKey()); // -2 header is not encrypted
+        }
+        else if(packetTypeLow < 0x0d)
+        {
+            mCompCryptor->Encrypt(mSendBuffer + 1, outLen - 1, session->getEncryptKey()); // - 1 header is not encrypted
+        }
+
+        packet->setCRC(mCompCryptor->GenerateCRC(mSendBuffer, outLen, session->getEncryptKey()));
+
+
+        mSendBuffer[outLen] = (uint8)(packet->getCRC() >> 8);
+        mSendBuffer[outLen + 1] = (uint8)packet->getCRC();
+        outLen += 2;
+    }
+
+    boost::asio::ip::udp::endpoint dest(boost::asio::ip::address::from_string(session->getAddressString()), session->getPortHost());
+    socket_.send_to(
+        boost::asio::buffer(mSendBuffer, outLen),
+        dest);
+    //sent = sendto(mSocket, mSendBuffer, outLen, 0, &toAddr, toLen);
+
+   // if (sent < 0)
+   // {
+   //     LOG(WARNING) << "Unkown Error from socket sendto: " << errno;
+   // }
+}); }
+
 //======================================================================================================================
 
-void SocketReadThread::RemoveAndDestroySession(Session* session)
-{
+void SocketReadThread::RemoveAndDestroySession(Session* session) { active_.Send([=] {
     if (! session) {
         return;
     }
@@ -236,7 +253,7 @@ void SocketReadThread::RemoveAndDestroySession(Session* session)
     uint64 hash = session->getAddress() | (((uint64)session->getPort()) << 32);
 
     LOG(INFO) << "Service " << mSessionFactory->getService()->getId() << ": Removing Session("	<< inet_ntoa(*((in_addr*)(&hash))) 
-    <<  ", " << ntohs(session->getPort()) << "), AddressMap: " << mAddressSessionMap.size() - 1 << " hash " << hash;
+    <<  ", " << session->getPortHost() << "), AddressMap: " << mAddressSessionMap.size() - 1 << " hash " << hash;
 
     boost::mutex::scoped_lock lk(mSocketReadMutex);
 
@@ -251,21 +268,47 @@ void SocketReadThread::RemoveAndDestroySession(Session* session)
     else
     {
         LOG(INFO) << "Service " << mSessionFactory->getService()->getId() << ": Removing Session FAILED("	<< inet_ntoa(*((in_addr*)(&hash))) 
-        <<  ", " << ntohs(session->getPort()) << "), AddressMap: " << mAddressSessionMap.size() - 1 << " hash " << hash;
+        <<  ", " << session->getPortHost() << "), AddressMap: " << mAddressSessionMap.size() - 1 << " hash " << hash;
     }
+}); }
+
+
+void SocketReadThread::asyncReceive_() {
+    socket_.async_receive_from(
+        boost::asio::buffer(receive_buffer_),
+        remote_endpoint_,
+        std::bind(&SocketReadThread::handleIncomingMessage_, this, 
+            std::placeholders::_1, 
+            std::placeholders::_2));
 }
 
 
+void SocketReadThread::handleIncomingMessage_(const boost::system::error_code& error, size_t bytes_received) {    
+    if (error && error != boost::asio::error::message_size && error != boost::asio::error::connection_refused) {
+        LOG(WARNING) << "Error reading from socket: " << error.message().c_str();
+        LOG(WARNING) << "Bytes received: " << bytes_received;
+        asyncReceive_();
+        return;
+    }
+    
+    if (bytes_received) {
+        Packet* incoming_message = mPacketFactory->CreatePacket();
+        incoming_message->addData(&receive_buffer_[0], bytes_received);
+        handleIncomingMessage_(remote_endpoint_.address().to_string(), 
+                               remote_endpoint_.port(), 
+                               bytes_received,
+                               incoming_message);
+    }
 
-void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t recvLen, Packet* incoming_message) {
+    asyncReceive_();
+}
+
+
+void SocketReadThread::handleIncomingMessage_(const std::string& address, uint16_t port, uint16_t recvLen, Packet* incoming_message) {
     Session* session;
     uint16_t decompressLen = 0;
     
-    // Get our remote Address and port
-    uint32_t address = from.sin_addr.s_addr;
-    uint16_t port    = from.sin_port;
-
-    uint64 hash = address | (((uint64)port) << 32);
+    uint64 hash = inet_addr(address.c_str()) | (((uint64)htons(port)) << 32);
     
     uint8  packetTypeLow	= incoming_message->peekUint8();
     uint16 packetType		= incoming_message->getUint16();
@@ -286,8 +329,8 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
             session = mSessionFactory->CreateSession();
             session->setSocketReadThread(this);
             session->setPacketFactory(mPacketFactory);
-            session->setAddress(address);  // Store the address and port in network order so we don't have to
-            session->setPort(port);  // convert them all the time.  Only convert for humans.
+            session->setAddress(inet_addr(address.c_str()));  // Store the address and port in network order so we don't have to
+            session->setPort(htons(port));  // convert them all the time.  Only convert for humans.
             session->setResendWindowSize(mSessionResendWindowSize);
 
             // Insert the session into our address map and process list
@@ -296,7 +339,7 @@ void SocketReadThread::handleIncomingMessage_(struct sockaddr_in from, uint16_t 
             session->mHash = hash;
 
             LOG(INFO) << "Added Service " << mSessionFactory->getService()->getId() << ": New Session(" 
-            <<inet_ntoa(from.sin_addr) << ", " << ntohs(session->getPort()) << "), AddressMap: " << mAddressSessionMap.size();
+            << address << ", " << port << "), AddressMap: " << mAddressSessionMap.size();
         }
         else
         {

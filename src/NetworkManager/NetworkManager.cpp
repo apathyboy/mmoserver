@@ -26,56 +26,65 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "NetworkManager.h"
+
+#include <algorithm>
+#include <functional>
+
 #include "NetConfig.h"
 #include "Service.h"
 
 
 #include "Utils/typedefs.h"
 
-#if defined(_MSC_VER)
-#ifndef _WINSOCK2API_
-#include <WINSOCK2.h>
-#endif
-#endif
 
 //======================================================================================================================
 
-NetworkManager::NetworkManager(void) :
-    mServiceIdIndex(1)
+NetworkManager::NetworkManager() 
+    : io_service_()
+    , io_work_(new boost::asio::io_service::work(io_service_))
+    , worker_threads_(std::min<uint32_t>(boost::thread::hardware_concurrency()!=0?boost::thread::hardware_concurrency():2,8))
+    , mServiceIdIndex(1)
 {
     // for safety, in case someone forgot to init previously
     NetConfig::Init();
+    
+    std::for_each(worker_threads_.begin(), worker_threads_.end(), [=] (boost::thread& thread) {
+        thread = boost::thread(std::bind(&boost::asio::io_service::run, &io_service_));
+    });
 }
 
 //======================================================================================================================
 
-NetworkManager::~NetworkManager(void)
-{
+NetworkManager::~NetworkManager() {
+    io_work_.reset();
+
+    std::for_each(worker_threads_.begin(), worker_threads_.end(), [=] (boost::thread& thread) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    });
+}
+
+
+boost::asio::io_service& NetworkManager::io_service() {
+    return io_service_;
 }
 
 //======================================================================================================================
 
-void NetworkManager::Process(void)
-{
-    // Get the current count of Services to be processed.  We can't just check to see if the queue is empty, since
-    // the other threads could keep placing more Service objects in the queue, and this could cause a stall in the
-    // main thread.
-
+void NetworkManager::Process() {
     Service*	service = 0;
-    uint32		serviceCount = mServiceProcessQueue.size();
+    uint32		serviceCount = mServiceProcessQueue.unsafe_size();
 
-    for(uint32 i = 0; i < serviceCount; i++)
-    {
+    for(uint32 i = 0; i < serviceCount; i++) {
         // Grab our next Service to process
-        service = mServiceProcessQueue.pop();
-
-        if(service)
-        {
-            service->Process();
-            service->setQueued(false);
+        if (mServiceProcessQueue.try_pop(service)) {
+            if(service) {
+                service->Process();
+                service->setQueued(false);
+            }
         }
     }
-
 }
 
 
@@ -99,7 +108,7 @@ void NetworkManager::DestroyService(Service* service)
 
 //======================================================================================================================
 
-Client* NetworkManager::Connect(void)
+Client* NetworkManager::Connect()
 {
     Client* newClient = 0;
 
@@ -120,6 +129,10 @@ void NetworkManager::UnregisterCallback(NetworkCallback* callback)
 
 //======================================================================================================================
 
-
-
+void NetworkManager::AddServiceToProcessQueue(Service* service) {
+    if(!service->isQueued()) {
+        service->setQueued(true);
+        mServiceProcessQueue.push(service);
+    }
+}
 

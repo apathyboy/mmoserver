@@ -26,7 +26,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "SocketWriteThread.h"
+#include "SocketReadThread.h"
 
+#ifdef ERROR
+#undef ERROR
+#endif
 #include <glog/logging.h>
 
 #include "CompCryptor.h"
@@ -35,45 +39,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "Service.h"
 #include "Session.h"
 
-
-
 #include "Utils/rand.h"
 
-#if defined(__GNUC__)
-// GCC implements tr1 in the <tr1/*> headers. This does not conform to the TR1
-// spec, which requires the header without the tr1/ prefix.
-#include <tr1/functional>
-#else
 #include <functional>
-#endif
-
-#if defined(_MSC_VER)
-#ifndef _WINSOCK2API_
-#include <WINSOCK2.h>
-#undef errno
-#define errno WSAGetLastError()
-#endif
-#else
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <errno.h>
-
-#define INVALID_SOCKET	-1
-#define SOCKET_ERROR	-1
-#define closesocket		close
-#endif
 
 #include <boost/thread/thread.hpp>
 
 //======================================================================================================================
 
-SocketWriteThread::SocketWriteThread(SOCKET socket, Service* service, bool serverservice) :
+SocketWriteThread::SocketWriteThread(Service* service, bool serverservice) :
     mService(0),
     mCompCryptor(0),
-    mSocket(0),
     mIsRunning(false)
 {
-    mSocket = socket;
     mService = service;
 
     if(serverservice)
@@ -97,9 +75,7 @@ SocketWriteThread::SocketWriteThread(SOCKET socket, Service* service, bool serve
     mCompCryptor = new CompCryptor();
 
     // start our thread
-    boost::thread t(std::tr1::bind(&SocketWriteThread::run, this));
-
-    mThread = boost::move(t);
+    mThread = boost::thread(std::tr1::bind(&SocketWriteThread::run, this));
 
 #ifdef _WIN32
     HANDLE mtheHandle = mThread.native_handle();
@@ -230,113 +206,8 @@ void SocketWriteThread::_shutdown(void)
 
 //======================================================================================================================
 
-void SocketWriteThread::_sendPacket(Packet* packet, Session* session)
-{
-    struct sockaddr     toAddr;
-    uint32              sent, toLen = sizeof(toAddr), outLen;
-
-
-    // Going to simulate network packet loss here.
-    //seed_rand_mwc1616(gClock->getLocalTime());
-    //if (rand_mwc1616() < 0xffffffff / 5)  // 20%
-    //{
-    //return;
-    //}
-
-    packet->setReadIndex(0);
-    uint16 packetType = packet->getUint16();
-    uint8  packetTypeLow = *(packet->getData());
-    //uint8  packetTypeHigh = *(packet->getData()+1);
-
-    // Set our TimeSent
-    packet->setTimeSent(Anh_Utils::Clock::getSingleton()->getStoredTime());
-
-    // Setup our to address
-    toAddr.sa_family = AF_INET;
-    *((unsigned int*)&toAddr.sa_data[2]) = session->getAddress();     // Ports and addresses are stored in network order.
-    *((unsigned short*)&(toAddr.sa_data[0])) = session->getPort();    // Only need to convert for humans.
-
-    // Copy our 2 byte header.
-    *((uint16*)mSendBuffer) = *((uint16*)packet->getData());
-
-    // Compress the packet if needed.
-    if(packet->getIsCompressed())
-    {
-        if(packetTypeLow == 0)
-        {
-            // Compress our packet, but not the header
-            outLen = mCompCryptor->Compress(packet->getData() + 2, packet->getSize() - 2, mSendBuffer + 2, sizeof(mSendBuffer));
-        }
-        else
-        {
-            outLen = mCompCryptor->Compress(packet->getData() + 1, packet->getSize() - 1, mSendBuffer + 1, sizeof(mSendBuffer));
-        }
-
-        // If we compressed it, place a 1 at the end of the buffer.
-        if(outLen)
-        {
-            if(packetTypeLow == 0)
-            {
-                mSendBuffer[outLen + 2] = 1;
-                outLen += 3;  //thats 2 (uncompressed) headerbytes plus the encryption flag
-            }
-            else
-            {
-                mSendBuffer[outLen + 1] = 1;
-                outLen += 2;
-            }
-        }
-        // else a 0 - so no compression
-        else
-        {
-            memcpy(mSendBuffer, packet->getData(), packet->getSize());
-            outLen = packet->getSize();
-
-            mSendBuffer[outLen] = 0;
-            outLen += 1;
-        }
-    }
-    else if(packetType == SESSIONOP_SessionResponse || packetType == SESSIONOP_CriticalError)
-    {
-        memcpy(mSendBuffer, packet->getData(), packet->getSize());
-        outLen = packet->getSize();
-    }
-    else
-    {
-        memcpy(mSendBuffer, packet->getData(), packet->getSize());
-        outLen = packet->getSize();
-
-        mSendBuffer[outLen] = 0;
-        outLen += 1;
-    }
-
-    // Encrypt the packet if needed.
-    if(packet->getIsEncrypted())
-    {
-        if(packetTypeLow == 0)
-        {
-            mCompCryptor->Encrypt(mSendBuffer + 2, outLen - 2, session->getEncryptKey()); // -2 header is not encrypted
-        }
-        else if(packetTypeLow < 0x0d)
-        {
-            mCompCryptor->Encrypt(mSendBuffer + 1, outLen - 1, session->getEncryptKey()); // - 1 header is not encrypted
-        }
-
-        packet->setCRC(mCompCryptor->GenerateCRC(mSendBuffer, outLen, session->getEncryptKey()));
-
-
-        mSendBuffer[outLen] = (uint8)(packet->getCRC() >> 8);
-        mSendBuffer[outLen + 1] = (uint8)packet->getCRC();
-        outLen += 2;
-    }
-
-    LOG(INFO) << "Sending message to " << session->getAddressString() << " on port " << ntohs(session->getPort());
-    sent = sendto(mSocket, mSendBuffer, outLen, 0, &toAddr, toLen);
-
-    if (sent < 0)
-    {
-        LOG(WARNING) << "Unkown Error from socket sendto: " << errno;
-    }
+void SocketWriteThread::_sendPacket(Packet* packet, Session* session) {
+    socket_thread_->sendPacket(packet, session);
 }
 
 //======================================================================================================================
@@ -351,3 +222,6 @@ void SocketWriteThread::NewSession(Session* session)
 
 
 
+void SocketWriteThread::setSocket(SocketReadThread* socket_thread) {
+    socket_thread_ = socket_thread;
+}

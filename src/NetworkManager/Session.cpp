@@ -37,10 +37,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <arpa/inet.h>
 #endif
 
-#include <boost/thread/thread.hpp>
+#ifdef _WIN32
+#include <WinSock2.h>
+#endif
 
-#include "Utils/rand.h"
-#include "Utils/utils.h"
+#include <boost/thread/thread.hpp>
 
 // Fix for issues with glog redefining this constant
 #ifdef ERROR
@@ -48,6 +49,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 
 #include <glog/logging.h>
+
+#include "Utils/rand.h"
+#include "Utils/utils.h"
 
 #include "NetworkManager/MessageFactory.h"
 #include "NetworkManager/NetworkClient.h"
@@ -455,7 +459,7 @@ void Session::ProcessWriteThread(void)
     }
     case SCOM_Disconnect:
     {
-		DLOG(INFO) << "Handle Session Disconnect " << this->getId() <<" endcount " << endCount;
+        DLOG(INFO) << "Handle Session Disconnect " << this->getId() <<" endcount " << endCount;
         _processDisconnectCommand();
         break;
     }
@@ -481,7 +485,7 @@ void Session::ProcessWriteThread(void)
             if(this->mServerService)
             {
                 LOG(INFO) << "Session disconnect last received packet > 60  ("<< (float)t/1000 << ") seconds session Id : " << this->getId();
-				LOG(INFO) << "Session lastpacket " << mLastPacketReceived << " now " << now << " diff :" << (now - mLastPacketReceived);
+                LOG(INFO) << "Session lastpacket " << mLastPacketReceived << " now " << now << " diff :" << (now - mLastPacketReceived);
                 mCommand = SCOM_Disconnect;
             }
             else
@@ -766,8 +770,8 @@ void Session::HandleSessionPacket(Packet* packet)
         }
 
         //were missing something
-		DLOG(INFO) << "Handle Session Packet :: Incoming data - seq: " << sequence << "expect: " << mInSequenceNext
-		<< "Session:0x"<< mService->getId() << getId() << "4x";
+        DLOG(INFO) << "Handle Session Packet :: Incoming data - seq: " << sequence << "expect: " << mInSequenceNext
+        << "Session:0x"<< mService->getId() << getId() << "4x";
 
         switch(packetType )
         {
@@ -806,7 +810,7 @@ void Session::HandleSessionPacket(Packet* packet)
         default:
         {
             DLOG(INFO) << "HandleSessionPacket :: wanted to send Out-of-Order packet - Sequence: " << sequence 
-			<< " Service " << mService->getId() <<" Session:0x" << getId();
+            << " Service " << mService->getId() <<" Session:0x" << getId();
             Packet* orderPacket;
             orderPacket = mPacketFactory->CreatePacket();
             orderPacket->addUint16(SESSIONOP_DataOrder2);
@@ -1324,7 +1328,7 @@ void Session::_processDataChannelAck(Packet* packet)
         else if((sequence < (0xFFFF - (mRolloverWindowPacketList.size()+mNewRolloverWindowPacketList.size()))))
         {
 
-			DLOG(INFO) << "Data Channel Ack Rollover complete. Windowsize " << mWindowSizeCurrent <<  " ack seq new queue " << sequence;
+            DLOG(INFO) << "Data Channel Ack Rollover complete. Windowsize " << mWindowSizeCurrent <<  " ack seq new queue " << sequence;
             mLastRemotePacketAckReceived = Anh_Utils::Clock::getSingleton()->getLocalTime();
 
             mOutSequenceRollover = false;
@@ -1795,7 +1799,7 @@ void Session::_processFragmentedPacket(Packet* packet)
     }
     else if (sequence > mInSequenceNext)
     {
-		LOG(INFO) << "Fragged packet received out of order - expect: " <<mInSequenceNext << " received: " << sequence;
+        LOG(INFO) << "Fragged packet received out of order - expect: " <<mInSequenceNext << " received: " << sequence;
 
         mPacketFactory->DestroyPacket(packet);
         return;
