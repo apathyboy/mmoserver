@@ -25,33 +25,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ---------------------------------------------------------------------------------------
 */
 
-#include "Service.h"
+#include "NetworkManager/Service.h"
+
+#include <cassert>
 
 #ifdef ERROR
 #undef ERROR
 #endif
 #include <glog/logging.h>
 
-#include "NetworkCallback.h"
-#include "NetworkClient.h"
-#include "NetworkManager.h"
-#include "Packet.h"
-#include "Session.h"
-#include "SocketReadThread.h"
-#include "SocketWriteThread.h"
-
-
-
 #include "NetworkManager/Message.h"
-
-#include "Common/ConfigManager.h"
-#include "Utils/typedefs.h"
-
-#include <boost/thread/thread.hpp>
-
-#include <cassert>
-#include <cstdio>
-
+#include "NetworkManager/NetworkCallback.h"
+#include "NetworkManager/NetworkClient.h"
+#include "NetworkManager/NetworkManager.h"
+#include "NetworkManager/Packet.h"
+#include "NetworkManager/Session.h"
+#include "NetworkManager/SocketReadThread.h"
+#include "NetworkManager/SocketWriteThread.h"
 
 Service::Service(NetworkManager* networkManager, bool serverservice, uint32 id, int8* localAddress, uint16 localPort,uint32 mfHeapSize) 
     : mNetworkManager(networkManager)
@@ -192,6 +182,12 @@ void Service::AddSessionToProcessQueue(Session* session) {
 }
 
 
+void Service::AddNetworkCallback(NetworkCallback* callback) {
+    assert((mCallBack == NULL) && "dammit");
+    mCallBack = callback;
+}
+
+
 int8* Service::getLocalAddress() {
     return inet_ntoa(*(struct in_addr *)&mLocalAddress);
 }
@@ -199,5 +195,24 @@ int8* Service::getLocalAddress() {
 
 uint16 Service::getLocalPort() {
     return ntohs(mLocalPort);
+}
 
+
+uint32 Service::getId(void) {
+    return mId;
+}
+
+
+void Service::setId(uint32 id) {
+    mId = id;
+}
+
+
+void Service::setQueued(bool b) {
+    mQueued = b;
+}
+
+
+bool Service::isQueued() {
+    return mQueued;
 }

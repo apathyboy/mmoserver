@@ -57,26 +57,20 @@ public:
     void Connect(NetworkClient* client, int8* address, uint16 port);
 
     void AddSessionToProcessQueue(Session* session);
-    void AddNetworkCallback(NetworkCallback* callback) {
-        assert((mCallBack == NULL) && "dammit");
-        mCallBack = callback;
-    }
 
-    int8* getLocalAddress(void);
-    uint16 getLocalPort(void);
-    uint32 getId(void) {
-        return mId;
-    }
+    void AddNetworkCallback(NetworkCallback* callback);
 
-    void setId(uint32 id) {
-        mId = id;
-    }
-    void setQueued(bool b) {
-        mQueued = b;
-    }
-    bool isQueued() {
-        return mQueued;
-    }
+    int8* getLocalAddress();
+    
+    uint16 getLocalPort();
+    
+    uint32 getId();
+
+    void setId(uint32 id);
+
+    void setQueued(bool b);
+
+    bool isQueued();
 
 private:
     NetworkCallback* mCallBack;
