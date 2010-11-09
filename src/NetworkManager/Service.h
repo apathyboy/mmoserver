@@ -37,8 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "Utils/concurrent_queue.h"
 
 
-//======================================================================================================================
-
 class NetworkClient;
 class Session;
 class SocketReadThread;
@@ -46,77 +44,54 @@ class SocketWriteThread;
 class NetworkManager;
 class NetworkCallback;
 
-//======================================================================================================================
 
 typedef Anh_Utils::concurrent_queue<Session*>	SessionQueue;
-typedef std::list<NetworkCallback*>				NetworkCallbackList;
 
-//======================================================================================================================
-
-class Service
-{
+class Service {
 public:
-
     Service(NetworkManager* networkManager, bool serverservice, uint32 id, int8* localAddress, uint16 localPort,uint32 mfHeapSize);
-    ~Service(void);
+    ~Service();
 
-    void	Process();
+    void Process();
 
-    void	Connect(NetworkClient* client, int8* address, uint16 port);
+    void Connect(NetworkClient* client, int8* address, uint16 port);
 
-    void	AddSessionToProcessQueue(Session* session);
-    //void	AddNetworkCallback(NetworkCallback* callback){ mNetworkCallbackList.push_back(callback); }
-    void	AddNetworkCallback(NetworkCallback* callback) {
+    void AddSessionToProcessQueue(Session* session);
+    void AddNetworkCallback(NetworkCallback* callback) {
         assert((mCallBack == NULL) && "dammit");
         mCallBack = callback;
     }
 
-
-    int8*	getLocalAddress(void);
-    uint16	getLocalPort(void);
-    uint32	getId(void) {
+    int8* getLocalAddress(void);
+    uint16 getLocalPort(void);
+    uint32 getId(void) {
         return mId;
-    };
+    }
 
-    void	setId(uint32 id) {
+    void setId(uint32 id) {
         mId = id;
-    };
-    void	setQueued(bool b) {
+    }
+    void setQueued(bool b) {
         mQueued = b;
     }
-    bool	isQueued() {
+    bool isQueued() {
         return mQueued;
     }
 
 private:
-    NetworkCallback*		mCallBack;
-    //NetworkCallbackList		mNetworkCallbackList;
+    NetworkCallback* mCallBack;
+    SessionQueue mSessionProcessQueue;
 
-    SessionQueue			mSessionProcessQueue;
-
-    int8					mLocalAddressName[256];
-    NetworkManager*			mNetworkManager;
-    SocketReadThread*		mSocketReadThread;
-    SocketWriteThread*		mSocketWriteThread;
-    SOCKET					mLocalSocket;
-    uint64					avgTime;
-    uint64					lasttime;
-    uint32					avgPacketsbuild;
-    uint32					mId;
-    uint32					mLocalAddress;
-    uint32					mSessionResendWindowSize;
-    uint16					mLocalPort;
-    bool					mQueued;
-    bool					mServerService;	//marks us as the serverservice / clientservice
-
-    static bool				mSocketsSubsystemInitComplete;
+    int8 mLocalAddressName[256];
+    NetworkManager* mNetworkManager;
+    SocketReadThread* mSocketReadThread;
+    SocketWriteThread* mSocketWriteThread;
+    uint32 mId;
+    uint32 mLocalAddress;
+    uint32 mSessionResendWindowSize;
+    uint16 mLocalPort;
+    bool mQueued;
+    bool mServerService;	//marks us as the serverservice / clientservice
 };
 
-
-
-//======================================================================================================================
-
 #endif //ANH_NETWORKMANAGER_SERVICE_
-
-
-

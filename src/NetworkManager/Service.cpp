@@ -53,20 +53,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cstdio>
 
 
-
-//======================================================================================================================
-
-bool Service::mSocketsSubsystemInitComplete = false;
-
-//======================================================================================================================
-
 Service::Service(NetworkManager* networkManager, bool serverservice, uint32 id, int8* localAddress, uint16 localPort,uint32 mfHeapSize) 
     : mNetworkManager(networkManager)
     , mSocketReadThread(0)
     , mSocketWriteThread(0)
-    , mLocalSocket(0)
-    , avgTime(0)
-    , avgPacketsbuild (0)
     , mLocalAddress(0)
     , mLocalPort(0)
     , mQueued(false)
@@ -75,8 +65,6 @@ Service::Service(NetworkManager* networkManager, bool serverservice, uint32 id, 
     mCallBack = NULL;
     mId = id;
 
-    //localAddress = (char*)gConfig->read<std::string>("BindAddress").c_str();
-    lasttime = Anh_Utils::Clock::getSingleton()->getLocalTime();
     assert(strlen(localAddress) < 256 && "Address length should be less than 256");
     strcpy(mLocalAddressName, localAddress);
     mLocalAddress = inet_addr(localAddress);
@@ -84,26 +72,18 @@ Service::Service(NetworkManager* networkManager, bool serverservice, uint32 id, 
 
     // Create our read/write socket classes
     mSocketWriteThread = new SocketWriteThread(this, mServerService);
-    //mSocketReadThread = new SocketReadThread(mLocalSocket, mSocketWriteThread,this,mfHeapSize, mServerService);
     mSocketReadThread = new SocketReadThread(mNetworkManager->io_service(), localPort, mSocketWriteThread, this, mfHeapSize, mServerService);
     mSocketWriteThread->setSocket(mSocketReadThread);
-
-    //boost::thread io_thread(std::bind(&boost::asio::io_service::run, &io_service_));
-    //io_thread_ = std::move(io_thread);
 }
 
-//======================================================================================================================
 
-Service::~Service(void)
-{
+Service::~Service() {
     Session* session = 0;
 
-    while(mSessionProcessQueue.size())
-    {
+    while(mSessionProcessQueue.size()) {
         session = mSessionProcessQueue.pop();
 
-        if(session)
-        {
+        if(session) {
             mSocketReadThread->RemoveAndDestroySession(session);
         }
     }
@@ -112,10 +92,8 @@ Service::~Service(void)
     delete mSocketReadThread;
 }
 
-//======================================================================================================================
 
-void Service::Process()
-{
+void Service::Process() {
     //we only ever get here with a connected session
 
     // Get the current count of Sessions to be processed.  We can't just check to see if the queue is empty, since
@@ -126,8 +104,7 @@ void Service::Process()
     NetworkClient* newClient = 0;
     uint32 sessionCount = mSessionProcessQueue.size();
 
-    for(uint32 i = 0; i < sessionCount; i++)
-    {
+    for(uint32 i = 0; i < sessionCount; i++) {
         // Grab our next Service to process
         session = mSessionProcessQueue.pop();
 
@@ -137,51 +114,29 @@ void Service::Process()
         session->setInIncomingQueue(false);
 
         // Check to see if we're in the process of connecting or disconnecting.
-        if(session->getStatus() == SSTAT_Connecting)
-        {
-            //for(NetworkCallbackList::iterator iter = mNetworkCallbackList.begin(); iter != mNetworkCallbackList.end(); ++iter)
-            //{
-            //mCallBack->handleSessionMessage(session->getClient(), message);
+        if(session->getStatus() == SSTAT_Connecting) {
             newClient = mCallBack->handleSessionConnect(session, this);
 
             // They returned a client to us, so keep the session.
-            if(newClient)
-            {
+            if(newClient) {
                 session->setClient(newClient);
                 newClient->setSession(session);
                 session->setStatus(SSTAT_Connected);
-            }
-            else
-            {
+            } else {
                 // Remove the session, they don't want it.
                 session->setCommand(SCOM_Disconnect);
             }
-            //}
-        }
-        else if(session->getStatus() == SSTAT_Disconnecting)
-        {
-
-            NetworkCallbackList::iterator iter;
-
-            //for(iter = mNetworkCallbackList.begin(); iter != mNetworkCallbackList.end(); ++iter)
-            //{
-            if(session->getClient())
-            {
+        } else if(session->getStatus() == SSTAT_Disconnecting) {
+            if(session->getClient()) {
                 mCallBack->handleSessionDisconnect(session->getClient());
                 session->setClient(0);
             }
-            //}
 
             // We're now dis connected.
             session->setStatus(SSTAT_Disconnected);
-
             continue;
-        }
-        else if(session->getStatus() == SSTAT_Destroy)
-        {
+        } else if(session->getStatus() == SSTAT_Destroy) {
             mSocketReadThread->RemoveAndDestroySession(session);
-
-
             continue;
         }
 
@@ -190,41 +145,26 @@ void Service::Process()
         // Iterate through our priority queue's looking for messages.
         uint32 messageCount = session->getIncomingQueueMessageCount();
 
-        if(!session->getClient())
-        {
-            for(uint32 j = 0; j < messageCount; j++)
-            {
+        if(!session->getClient()) {
+            for(uint32 j = 0; j < messageCount; j++) {
                 Message* message = session->getIncomingQueueMessage();
                 message->setPendingDelete(true);
             }
-        }
-        else
-        {
-            for(uint32 j = 0; j < messageCount; j++)
-            {
+        } else {
+            for(uint32 j = 0; j < messageCount; j++) {
                 Message* message = session->getIncomingQueueMessage();
 
                 message->ResetIndex();
 
                 // At this point we can assume we have a client object, so send the data up.
-                // actually when a server crashed it happens that we crash the connectionserver this way
-                //NetworkCallbackList::iterator iter;
-
                 mCallBack->handleSessionMessage(session->getClient(), message);
-                //for(iter = mNetworkCallbackList.begin(); iter != mNetworkCallbackList.end(); ++iter)
-                //{
-                //(*iter)->handleSessionMessage(session->getClient(), message);
-                //}
             }
         }
 
         session->setInIncomingQueue(false);
     }
-
-
 }
 
-//======================================================================================================================
 
 void Service::Connect(NetworkClient* client, int8* address, uint16 port) {
     LOG(INFO) << "New connection to " << address << " on port " << port;
@@ -240,12 +180,9 @@ void Service::Connect(NetworkClient* client, int8* address, uint16 port) {
     session->setClient(client);
 }
 
-//======================================================================================================================
 
-void Service::AddSessionToProcessQueue(Session* session)
-{
-    if(!session->getInIncomingQueue())
-    {
+void Service::AddSessionToProcessQueue(Session* session) {
+    if(!session->getInIncomingQueue()) {
         session->setInIncomingQueue(true);
         mSessionProcessQueue.push(session);
 
@@ -254,21 +191,13 @@ void Service::AddSessionToProcessQueue(Session* session)
     mNetworkManager->AddServiceToProcessQueue(this);
 }
 
-//======================================================================================================================
 
-int8* Service::getLocalAddress(void)
-{
+int8* Service::getLocalAddress() {
     return inet_ntoa(*(struct in_addr *)&mLocalAddress);
 }
 
-//======================================================================================================================
 
-uint16 Service::getLocalPort(void)
-{
+uint16 Service::getLocalPort() {
     return ntohs(mLocalPort);
 
 }
-
-//======================================================================================================================
-
-
