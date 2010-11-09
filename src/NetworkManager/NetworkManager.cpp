@@ -42,27 +42,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 NetworkManager::NetworkManager() 
     : io_service_()
     , io_work_(new boost::asio::io_service::work(io_service_))
-    , worker_threads_(std::min<uint32_t>(boost::thread::hardware_concurrency()!=0?boost::thread::hardware_concurrency():2,8))
     , mServiceIdIndex(1)
 {
     // for safety, in case someone forgot to init previously
     NetConfig::Init();
     
-    std::for_each(worker_threads_.begin(), worker_threads_.end(), [=] (boost::thread& thread) {
-        thread = boost::thread(std::bind(&boost::asio::io_service::run, &io_service_));
-    });
+    worker_thread_ = boost::thread(std::bind(&boost::asio::io_service::run, &io_service_));
 }
 
 //======================================================================================================================
 
 NetworkManager::~NetworkManager() {
     io_work_.reset();
-
-    std::for_each(worker_threads_.begin(), worker_threads_.end(), [=] (boost::thread& thread) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    });
+    io_service_.stop();
+    if (worker_thread_.joinable()) {
+        worker_thread_.join();
+    }
 }
 
 

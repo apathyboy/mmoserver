@@ -102,6 +102,7 @@ SocketReadThread::SocketReadThread(
 
 SocketReadThread::~SocketReadThread()
 {
+    socket_.io_service().stop();
     _shutdown();
     mExit = true;
 
@@ -286,8 +287,10 @@ void SocketReadThread::asyncReceive_() {
 void SocketReadThread::handleIncomingMessage_(const boost::system::error_code& error, size_t bytes_received) {    
     if (error && error != boost::asio::error::message_size && error != boost::asio::error::connection_refused) {
         LOG(WARNING) << "Error reading from socket: " << error.message().c_str();
-        LOG(WARNING) << "Bytes received: " << bytes_received;
-        asyncReceive_();
+        
+        if (error !=  boost::asio::error::operation_aborted) {
+            asyncReceive_();
+        }
         return;
     }
     

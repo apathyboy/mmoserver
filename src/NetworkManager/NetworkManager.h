@@ -77,11 +77,11 @@ private:
     boost::asio::io_service io_service_;
     std::unique_ptr<boost::asio::io_service::work> io_work_;
 
-    std::vector<boost::thread> worker_threads_;
+    boost::thread worker_thread_;
 
-    ServiceQueue		mServiceProcessQueue;
+    ServiceQueue mServiceProcessQueue;
 
-    uint32			mServiceIdIndex;
+    uint32 mServiceIdIndex;
 };
 
 #endif // ANH_NETWORKMANAGER_NETWORKMANAGER_H
