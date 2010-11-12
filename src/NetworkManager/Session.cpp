@@ -58,7 +58,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "NetworkManager/Packet.h"
 #include "NetworkManager/PacketFactory.h"
 #include "NetworkManager/Service.h"
-#include "NetworkManager/SocketReadThread.h"
 #include "NetworkManager/SocketWriteThread.h"
 
 //======================================================================================================================
@@ -66,7 +65,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Session::Session(void) :
     mService(0),
     mClient(0),
-    mSocketReadThread(0),
     mSocketWriteThread(0),
     mPacketFactory(0),
     mMessageFactory(0),
@@ -1663,8 +1661,6 @@ void Session::_resendData()
 //======================================================================================================================
 void Session::_processDataOrderChannelB(Packet* packet)
 {
-    boost::recursive_mutex::scoped_lock lk(mSessionMutex);//
-
     packet->setReadIndex(2);
     uint16 sequence = ntohs(packet->getUint16());
     uint16 bottomSequence = ntohs(packet->getUint16());

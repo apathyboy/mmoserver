@@ -28,13 +28,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef ANH_NETWORKMANAGER_SOCKETWRITETHREAD_H
 #define ANH_NETWORKMANAGER_SOCKETWRITETHREAD_H
 
-#include "Utils/typedefs.h"
-#include "Utils/clock.h"
-#include "Utils/concurrent_queue.h"
-
+#include <boost/thread/recursive_mutex.hpp>
 #include <boost/thread/thread.hpp>
 
-#define SEND_BUFFER_SIZE 8192
+#include <tbb/concurrent_queue.h>
+
+#include "Utils/typedefs.h"
+#include "Utils/clock.h"
 
 //======================================================================================================================
 
@@ -42,9 +42,8 @@ class Service;
 class Packet;
 class Session;
 class CompCryptor;
-class SocketReadThread;
 
-typedef Anh_Utils::concurrent_queue<Session*>    SessionQueue;
+typedef tbb::concurrent_queue<Session*>	SessionQueue;
 
 //======================================================================================================================
 
@@ -65,9 +64,7 @@ public:
     void			requestExit() {
         mExit = true;
     }
-
-    void setSocket(SocketReadThread* socket_thread);
-
+    
 private:
 
     void			_startup(void);
@@ -76,10 +73,8 @@ private:
     void			_sendPacket(Packet* packet, Session* session);
 
     //void				*mtheHandle;
-    SocketReadThread* socket_thread_;
 
     uint16				mMessageMaxSize;
-    int8				mSendBuffer[SEND_BUFFER_SIZE];
     Service*			mService;
     CompCryptor*		mCompCryptor;
     bool				mIsRunning;

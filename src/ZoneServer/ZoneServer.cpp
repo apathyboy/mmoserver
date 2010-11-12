@@ -27,38 +27,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "ZoneServer.h"
 
+#include <WinSock2.h>
+
+#include <boost/thread/thread.hpp>
+
+#ifdef ERROR
+#undef ERROR
+#endif
 #include <glog/logging.h>
-
-#include "CharacterLoginHandler.h"
-#include "CharSheetManager.h"
-//	Managers
-#include "CraftingManager.h"
-#include "AdminManager.h"
-#include "ArtisanManager.h"
-#include "BuffManager.h"
-#include "CombatManager.h"
-#include "EntertainerManager.h"
-#include "ForageManager.h"
-#include "GroupManager.h"
-#include "MedicManager.h"
-#include "NpcManager.h"
-#include "ScoutManager.h"
-#include "SkillManager.h"
-#include "StateManager.h"
-#include "StructureManager.h"
-#include "TradeManager.h"
-#include "UIManager.h"
-#include "WorldManager.h"
-
-#include "Food.h"
-#include "NonPersistentItemFactory.h"
-#include "NonPersistentNpcFactory.h"
-#include "nonPersistantObjectFactory.h"
-#include "ObjectControllerCommandMap.h"
-#include "ObjectControllerDispatch.h"
-#include "ObjectFactory.h"
-#include "TravelMapHandler.h"
-#include "WorldConfig.h"
 
 // External references
 #include "MessageLib/MessageLib.h"
@@ -82,8 +58,36 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "Utils/Singleton.h"
 
 #include "ZoneServer/HamService.h"
+#include "ZoneServer/CharacterLoginHandler.h"
+#include "ZoneServer/CharSheetManager.h"
+//	Managers
+#include "ZoneServer/CraftingManager.h"
+#include "ZoneServer/AdminManager.h"
+#include "ZoneServer/ArtisanManager.h"
+#include "ZoneServer/BuffManager.h"
+#include "ZoneServer/CombatManager.h"
+#include "ZoneServer/EntertainerManager.h"
+#include "ZoneServer/ForageManager.h"
+#include "ZoneServer/GroupManager.h"
+#include "ZoneServer/MedicManager.h"
+#include "ZoneServer/NpcManager.h"
+#include "ZoneServer/ScoutManager.h"
+#include "ZoneServer/SkillManager.h"
+#include "ZoneServer/StateManager.h"
+#include "ZoneServer/StructureManager.h"
+#include "ZoneServer/TradeManager.h"
+#include "ZoneServer/UIManager.h"
+#include "ZoneServer/WorldManager.h"
 
-#include <boost/thread/thread.hpp>
+#include "ZoneServer/Food.h"
+#include "ZoneServer/NonPersistentItemFactory.h"
+#include "ZoneServer/NonPersistentNpcFactory.h"
+#include "ZoneServer/nonPersistantObjectFactory.h"
+#include "ZoneServer/ObjectControllerCommandMap.h"
+#include "ZoneServer/ObjectControllerDispatch.h"
+#include "ZoneServer/ObjectFactory.h"
+#include "ZoneServer/TravelMapHandler.h"
+#include "ZoneServer/WorldConfig.h"
 
 using utils::Singleton;
 using common::EventDispatcher;

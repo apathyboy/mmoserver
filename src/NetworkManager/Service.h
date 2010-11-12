@@ -28,29 +28,41 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef ANH_NETWORKMANAGER_SERVICE_H
 #define ANH_NETWORKMANAGER_SERVICE_H
 
+#include <cstdint>
+#include <functional>
 #include <list>
 
 #include <boost/asio.hpp>
 #include <boost/thread/thread.hpp>
 
+#include <tbb/concurrent_queue.h>
+
+#include "Utils/ActiveObject.h"
 #include "Utils/typedefs.h"
-#include "Utils/concurrent_queue.h"
 
+#define SEND_BUFFER_SIZE 8192
 
+class CompCryptor;
+class MessageFactory;
 class NetworkClient;
+class Packet;
+class PacketFactory;
 class Session;
+class SessionFactory;
 class SocketReadThread;
 class SocketWriteThread;
 class NetworkManager;
 class NetworkCallback;
 
-
-typedef Anh_Utils::concurrent_queue<Session*>	SessionQueue;
+typedef std::map<uint64_t, Session*> AddressSessionMap;
+typedef tbb::concurrent_queue<Session*>	SessionQueue;
 
 class Service {
 public:
-    Service(NetworkManager* networkManager, bool serverservice, uint32 id, int8* localAddress, uint16 localPort,uint32 mfHeapSize);
+    Service(NetworkManager* networkManager, bool server_service, uint32 id, int8* localAddress, uint16 localPort,uint32 mfHeapSize);
     ~Service();
+
+    void sendPacket(Packet* packet, Session* session);
 
     void Process();
 
@@ -72,13 +84,30 @@ public:
 
     bool isQueued();
 
+    void RemoveAndDestroySession(Session* session);
+
 private:
+    void startAsyncReceive_();
+    void handleIncomingSocketMessage_(const boost::system::error_code& error, size_t bytes_received);
+    void handleIncomingMessage_(const std::string& address, uint16_t port, uint16_t recvLen, Packet* incoming_message);
+    
+    boost::asio::ip::udp::endpoint remote_endpoint_;   //Storage for Current Client
+    boost::asio::ip::udp::socket socket_;
+    std::vector<int8> receive_buffer_;
+        
+    int8 mSendBuffer[SEND_BUFFER_SIZE];
+    
+    AddressSessionMap mAddressSessionMap;
+
     NetworkCallback* mCallBack;
     SessionQueue mSessionProcessQueue;
 
     int8 mLocalAddressName[256];
     NetworkManager* mNetworkManager;
-    SocketReadThread* mSocketReadThread;
+    CompCryptor* mCompCryptor;
+    MessageFactory* mMessageFactory;
+    PacketFactory* mPacketFactory;
+    SessionFactory* mSessionFactory;
     SocketWriteThread* mSocketWriteThread;
     uint32 mId;
     uint32 mLocalAddress;

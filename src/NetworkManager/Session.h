@@ -162,9 +162,7 @@ public:
     void                        setService(Service* service)                    {
         mService = service;
     }
-    void                        setSocketReadThread(SocketReadThread* thread)   {
-        mSocketReadThread = thread;
-    }
+
     void                        setSocketWriteThread(SocketWriteThread* thread) {
         mSocketWriteThread = thread;
     }
@@ -267,7 +265,6 @@ private:
 
     Service*                    mService;
     NetworkClient*              mClient;
-    SocketReadThread*           mSocketReadThread;
     SocketWriteThread*          mSocketWriteThread;
     PacketFactory*              mPacketFactory;
     MessageFactory*             mMessageFactory;

@@ -26,7 +26,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "SocketWriteThread.h"
-#include "SocketReadThread.h"
 
 #ifdef ERROR
 #undef ERROR
@@ -124,12 +123,12 @@ void SocketWriteThread::run()
     while(!mExit)
     {
 
-        uint32 sessionCount = mSessionQueue.size();
+        uint32 sessionCount = mSessionQueue.unsafe_size();
 
         for(uint32 i = 0; i < sessionCount; i++)
         {
             uint32 packetCount = 0;
-            session = mSessionQueue.pop();
+            mSessionQueue.try_pop(session);
 
             if(!session)
                 continue;
@@ -207,7 +206,7 @@ void SocketWriteThread::_shutdown(void)
 //======================================================================================================================
 
 void SocketWriteThread::_sendPacket(Packet* packet, Session* session) {
-    socket_thread_->sendPacket(packet, session);
+    mService->sendPacket(packet, session);
 }
 
 //======================================================================================================================
@@ -218,10 +217,3 @@ void SocketWriteThread::NewSession(Session* session)
     mSessionQueue.push(session);
 }
 
-//======================================================================================================================
-
-
-
-void SocketWriteThread::setSocket(SocketReadThread* socket_thread) {
-    socket_thread_ = socket_thread;
-}
