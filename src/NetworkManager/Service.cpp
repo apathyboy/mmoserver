@@ -47,7 +47,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "NetworkManager/SocketWriteThread.h"
 
 Service::Service(NetworkManager* networkManager, bool server_service, uint32 id, int8* localAddress, uint16 localPort, uint32 mf_heap_size) 
-    : socket_(networkManager->io_service(), boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(localAddress), localPort))
+    : socket_(networkManager->io_service())
     , receive_buffer_(SEND_BUFFER_SIZE)
     , mAddressSessionMap()
     , mNetworkManager(networkManager)
@@ -73,6 +73,11 @@ Service::Service(NetworkManager* networkManager, bool server_service, uint32 id,
     mSocketWriteThread = new SocketWriteThread(this, mServerService);
 
     mSessionFactory = new SessionFactory(mSocketWriteThread, this, mPacketFactory, mMessageFactory, server_service);
+    
+    boost::asio::ip::udp::endpoint endpoint(boost::asio::ip::udp::v4(), localPort);
+    socket_.open(endpoint.protocol());
+    socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+    socket_.bind(endpoint);
 
     startAsyncReceive_();
 }
@@ -194,12 +199,6 @@ void Service::sendPacket(Packet* packet, Session* session) {
     socket_.send_to(
         boost::asio::buffer(mSendBuffer, outLen),
         dest);
-    //sent = sendto(mSocket, mSendBuffer, outLen, 0, &toAddr, toLen);
-
-   // if (sent < 0)
-   // {
-   //     LOG(WARNING) << "Unkown Error from socket sendto: " << errno;
-   // }
 }
 
 

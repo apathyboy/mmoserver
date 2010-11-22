@@ -97,7 +97,7 @@ public:
 
     void                        SendChannelA(Message* message);
 
-    void						  SendChannelAUnreliable(Message* message);
+    void						SendChannelAUnreliable(Message* message);
     void                        DestroyIncomingMessage(Message* message);
     void                        DestroyPacket(Packet* packet);
 
