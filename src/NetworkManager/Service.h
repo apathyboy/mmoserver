@@ -59,7 +59,12 @@ typedef tbb::concurrent_queue<Session*>	SessionQueue;
 
 class Service {
 public:
-    Service(NetworkManager* networkManager, bool server_service, uint32 id, int8* localAddress, uint16 localPort,uint32 mfHeapSize);
+    Service(NetworkManager* networkManager, 
+            bool server_service, 
+            uint32_t id, 
+            const std::string& local_address, 
+            uint16_t local_port, 
+            uint32_t message_factor_heap_size);
     ~Service();
 
     void sendPacket(Packet* packet, Session* session);

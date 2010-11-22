@@ -46,13 +46,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "NetworkManager/SessionFactory.h"
 #include "NetworkManager/SocketWriteThread.h"
 
-Service::Service(NetworkManager* networkManager, bool server_service, uint32 id, int8* localAddress, uint16 localPort, uint32 mf_heap_size) 
+Service::Service(
+    NetworkManager* networkManager, 
+    bool server_service, 
+    uint32_t id, 
+    const std::string& 
+    local_address, 
+    uint16_t local_port, 
+    uint32_t message_factor_heap_size) 
     : socket_(networkManager->io_service())
     , receive_buffer_(SEND_BUFFER_SIZE)
     , mAddressSessionMap()
     , mNetworkManager(networkManager)
     , mCompCryptor(new CompCryptor())
-    , mMessageFactory(new MessageFactory(mf_heap_size, id))
+    , mMessageFactory(new MessageFactory(message_factor_heap_size, id))
     , mPacketFactory(new PacketFactory(server_service))
     , mSessionFactory(nullptr)
     , mSocketWriteThread(0)
@@ -64,17 +71,17 @@ Service::Service(NetworkManager* networkManager, bool server_service, uint32 id,
     mCallBack = NULL;
     mId = id;
 
-    assert(strlen(localAddress) < 256 && "Address length should be less than 256");
-    strcpy(mLocalAddressName, localAddress);
-    mLocalAddress = inet_addr(localAddress);
-    mLocalPort = htons(localPort);
+    assert(local_address.length() < 256 && "Address length should be less than 256");
+    strcpy(mLocalAddressName, local_address.c_str());
+    mLocalAddress = inet_addr(local_address.c_str());
+    mLocalPort = htons(local_port);
 
     // Create our read/write socket classes
     mSocketWriteThread = new SocketWriteThread(this, mServerService);
 
     mSessionFactory = new SessionFactory(mSocketWriteThread, this, mPacketFactory, mMessageFactory, server_service);
     
-    boost::asio::ip::udp::endpoint endpoint(boost::asio::ip::udp::v4(), localPort);
+    boost::asio::ip::udp::endpoint endpoint(boost::asio::ip::address_v4::from_string(local_address), local_port);
     socket_.open(endpoint.protocol());
     socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
     socket_.bind(endpoint);
