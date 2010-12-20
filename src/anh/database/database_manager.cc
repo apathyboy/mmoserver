@@ -19,6 +19,8 @@
 
 #include "anh/database/database_manager.h"
 
+#include <stdexcept>
+
 #ifdef WIN32
 #include <regex>
 #else
@@ -29,17 +31,14 @@
 #include "anh/database/mysql/connection.h"
 
 
-#ifdef WIN32
-using std::regex;
-using std::smatch;
-using std::regex_match;
-#else
+#ifndef WIN32
 using boost::regex;
 using boost::smatch;
 using boost::regex_match;
 #endif
 
 using namespace anh::database;
+using namespace std;
 
 DatabaseManager::DatabaseManager() {}
 
@@ -47,6 +46,19 @@ DatabaseManager::~DatabaseManager() {}
 
 std::shared_ptr<IConnection> DatabaseManager::connect(const std::string& dsn, const std::string& username, const std::string& password) {
     std::shared_ptr<IConnection> connection = nullptr;
+        
+    std::string type;
+    std::string host;
+    std::string dbname;
+
+    std::tie(type, host, dbname) = parseDsn(dsn);
+
+    if (type == "mysql") {
+        connection = make_shared<mysql::Connection>(host, username, password, dbname);
+    } else {
+        throw std::invalid_argument("Invalid DSN string format or data storage engine type");
+    }
+
     return connection;
 }
 
