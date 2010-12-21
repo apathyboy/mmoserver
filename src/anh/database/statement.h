@@ -17,36 +17,24 @@
  along with MMOServer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef ANH_DATABASE_CONNECTION_H_
-#define ANH_DATABASE_CONNECTION_H_
+#ifndef ANH_DATABASE_STATEMENT_H_
+#define ANH_DATABASE_STATEMENT_H_
 
-#include <list>
+#include <functional>
 #include <memory>
-#include <string>
-
-#include "anh/database/statement.h"
 
 namespace anh {
 namespace database {
 
-class IConnection {
-public:
-    virtual ~IConnection() = 0 {};
-    
-    /// Processes all completed database callbacks.
-    virtual void process() = 0;
-    
-    virtual void execute(std::unique_ptr<anh::database::IStatement> statement) = 0;
-    
-    virtual void execute(std::list<std::unique_ptr<anh::database::IStatement>> statement) = 0;
+class IStatement;
 
-    virtual void execute(std::unique_ptr<anh::database::IStatement> statement, anh::database::StatementCallback callback) = 0;
+typedef std::function<void (std::unique_ptr<IStatement> statement)> StatementCallback;
 
-    virtual void execute(std::list<std::unique_ptr<anh::database::IStatement>> statement, anh::database::StatementCallback callback) = 0;
+class IStatement {
 
 };
 
 }  // namespace database
 }  // namespace anh
 
-#endif  // ANH_DATABASE_CONNECTION_H_
+#endif  // ANH_DATABASE_MYSQL_CONNECTION_H_

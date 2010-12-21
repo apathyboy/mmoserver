@@ -20,24 +20,35 @@
 #ifndef ANH_DATABASE_MYSQL_CONNECTION_H_
 #define ANH_DATABASE_MYSQL_CONNECTION_H_
 
+#include <list>
+#include <memory>
 #include <string>
 
 #include "anh/database/connection.h"
+#include "anh/database/statement.h"
 
 namespace anh {
 namespace database {
 namespace mysql {
 
+class Statement;
+
 class Connection : public anh::database::IConnection {
 public:
-    Connection(const std::string& host, const std::string& username, const std::string& password, const std::string& schema)
-    {}
+    Connection(const std::string& host, const std::string& username, const std::string& password, const std::string& schema);
 
-    ~Connection() {}
+    ~Connection();
     
-    /*! Processes all current database connections.
-    */
-    void process() {}
+    /// Processes all completed database callbacks.
+    void process();
+    
+    void execute(std::unique_ptr<anh::database::IStatement> statement);
+    
+    void execute(std::list<std::unique_ptr<anh::database::IStatement>> statement);
+
+    void execute(std::unique_ptr<anh::database::IStatement> statement, anh::database::StatementCallback callback);
+
+    void execute(std::list<std::unique_ptr<anh::database::IStatement>> statement, anh::database::StatementCallback callback);
 
 private:
     Connection();
