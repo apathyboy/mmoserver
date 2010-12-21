@@ -76,6 +76,9 @@ FUNCTION(AddMMOServerLibrary name)
             FILE(GLOB ADDITIONAL_HEADERS ${_source_dir}/*.h)
             FILE(GLOB ADDITIONAL_TEST_SOURCES ${_source_dir}/*_unittest.cc ${_source_dir}/*_unittest.cpp)
             
+            # convert the / to \\ in the path so the source group is created properly
+            string(REPLACE "/" "\\\\" _source_dir "${_source_dir}")
+            
             SOURCE_GROUP(${_source_dir} FILES ${ADDITIONAL_TEST_SOURCES} ${ADDITIONAL_SOURCES} ${ADDITIONAL_HEADERS})
 
             LIST(APPEND SOURCES ${ADDITIONAL_SOURCES})

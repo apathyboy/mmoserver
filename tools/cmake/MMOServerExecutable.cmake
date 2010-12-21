@@ -75,7 +75,11 @@ FUNCTION(AddMMOServerExecutable name)
         FOREACH(_source_dir ${MMOSERVERLIB_ADDITIONAL_SOURCE_DIRS})
             FILE(GLOB ADDITIONAL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${_source_dir}/*.cc ${CMAKE_CURRENT_SOURCE_DIR}/${_source_dir}/*.cpp)
             FILE(GLOB ADDITIONAL_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${_source_dir}/*.h)
+            
+            # convert the / to \\ in the path so the source group is created properly
+            string(REPLACE "/" "\\\\" _source_dir "${_source_dir}")            
             SOURCE_GROUP(${_source_dir} FILES ${ADDITIONAL_SOURCES} ${ADDITIONAL_HEADERS})
+            
             LIST(APPEND SOURCES ${ADDITIONAL_SOURCES})
             LIST(APPEND HEADERS ${ADDITIONAL_HEADERS})
         ENDFOREACH()
