@@ -20,9 +20,15 @@
 #include <gtest/gtest.h>
 
 #include "anh/database/database_manager.h"
+#include "anh/database/mysql/statement.h"
 
 using namespace anh::database;
 using namespace std;
+
+std::string some_func() {
+    static std::string some_string("some_string");
+    return some_string;
+}
 
 /// This test shows how to use the DatabaseManager can parse a DSN string.
 TEST(DatabaseManagerTest, CanParseDsnFromString) {
@@ -43,4 +49,8 @@ TEST(DatabaseManagerTest, CanParseDsnFromString) {
     EXPECT_EQ(std::string("mysql"), type);
     EXPECT_EQ(std::string("otherhost"), host);
     EXPECT_EQ(std::string("testdb2"), dbname);
+
+    mysql::Statement statement;
+    statement.bindParam("something", std::bind(some_func));
+    statement.execute();
 }

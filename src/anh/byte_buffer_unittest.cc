@@ -127,7 +127,7 @@ TEST(ByteBufferTests, CanReadUnicodeStringWrittenToTheBuffer)
     ByteBuffer buffer;
     std::wstring test_string(L"test string data");
 
-    buffer.write<std::wstring>(test_string);
+    buffer.write(test_string);
     EXPECT_STREQ(test_string.c_str(), buffer.read<std::wstring>().c_str());
 }
 
@@ -138,7 +138,7 @@ TEST(ByteBufferTests, UnicodeStringStoredAs16Bit)
 
     EXPECT_EQ(uint32_t(8), test_string.length());
     
-    buffer.write<std::wstring>(test_string);
+    buffer.write(test_string);
 
     EXPECT_EQ(uint32_t(8), buffer.read<uint32_t>());
 
@@ -186,8 +186,8 @@ TEST(ByteBufferTests, CanStreamData)
 TEST(ByteBufferTests, PeekingDataDoesNotMoveReadPosition)
 {
     ByteBuffer buffer;
-    buffer.write<int>(3);
-    buffer.write<int>(10);
+    buffer.write(3);
+    buffer.write(10);
 
     // Peek the data twice, this should return the same integer value (3) both times.
     EXPECT_EQ(3, buffer.peek<int>());
@@ -206,10 +206,10 @@ TEST(ByteBufferTests, CanReadAndWriteUnsignedData)
 TEST(ByteBufferTests, CanPeekAtOffset)
 {
     ByteBuffer buffer;
-    buffer.write<int>(3);
-    buffer.write<int>(32);
-    buffer.write<int>(979);
-    buffer.write<int>(5467);
+    buffer.write(3);
+    buffer.write(32);
+    buffer.write(979);
+    buffer.write(5467);
 
     EXPECT_EQ(979, buffer.peekAt<int>(8));
     EXPECT_EQ(32, buffer.peekAt<int>(4));
@@ -218,13 +218,13 @@ TEST(ByteBufferTests, CanPeekAtOffset)
 TEST(ByteBufferTests, CanWriteAtOffset)
 {
     ByteBuffer buffer;
-    buffer.write<int>(3);
-    buffer.write<int>(32);
-    buffer.write<int>(979);
-    buffer.write<int>(5467);
+    buffer.write(3);
+    buffer.write(32);
+    buffer.write(979);
+    buffer.write(5467);
 
-    buffer.writeAt<int>(8, 52);
-    buffer.writeAt<int>(4, 3532);
+    buffer.writeAt(8, 52);
+    buffer.writeAt(4, 3532);
 
     EXPECT_EQ(52, buffer.peekAt<int>(8));
     EXPECT_EQ(3532, buffer.peekAt<int>(4));
@@ -233,14 +233,14 @@ TEST(ByteBufferTests, CanWriteAtOffset)
 TEST(ByteBufferTests, CanAppendBuffers)
 {
     ByteBuffer buffer1;
-    buffer1.write<int>(0);
-    buffer1.write<int>(1);
-    buffer1.write<int>(2);
+    buffer1.write(0);
+    buffer1.write(1);
+    buffer1.write(2);
 
     ByteBuffer buffer2;
-    buffer2.write<int>(3);
-    buffer2.write<int>(4);
-    buffer2.write<int>(5);
+    buffer2.write(3);
+    buffer2.write(4);
+    buffer2.write(5);
 
     buffer1.append(buffer2);
 

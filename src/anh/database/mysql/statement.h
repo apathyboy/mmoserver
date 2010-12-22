@@ -21,7 +21,14 @@
 #define ANH_DATABASE_MYSQL_STATEMENT_H_
 
 #include <functional>
+#include <map>
 #include <memory>
+#include <string>
+
+#include <boost/any.hpp>
+
+#include <boost/variant.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include "anh/database/statement.h"
 
@@ -30,7 +37,14 @@ namespace database {
 namespace mysql {
 
 class Statement : public IStatement {
+public:
 
+    template<typename T>
+    bool bindParam(std::string name, T callback) {
+        return true;
+    }
+
+    void execute() {}
 };
 
 }  // namespace mysql
