@@ -40,11 +40,11 @@ void DatabaseManager::process() {
 }
 
 
-Database* DatabaseManager::connect(DBType type, 
-                                   const std::string& host, 
-                                   uint16_t port, 
-                                   const std::string& user, 
-                                   const std::string& pass, 
+Database* DatabaseManager::connect(DBType type,
+                                   const std::string& host,
+                                   uint16_t port,
+                                   const std::string& user,
+                                   const std::string& pass,
                                    const std::string& schema)
 {
     // Create our new Database object and initiailzie it.
