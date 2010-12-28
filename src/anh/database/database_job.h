@@ -42,7 +42,6 @@ public:
     DatabaseJob()
         : result(nullptr)
         , connection(nullptr)
-        , client_reference(NULL)
         , multi_job(false)
     {}
 
@@ -50,7 +49,6 @@ public:
     std::string query;
     DatabaseResult* result;
     DatabaseImplementation* connection;
-    void* client_reference;
     bool multi_job;
 };
 
