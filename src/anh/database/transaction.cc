@@ -25,33 +25,48 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ---------------------------------------------------------------------------------------
 */
 
-#include "anh/database/database_manager.h"
+#include "anh/database/transaction.h"
 
-#include <algorithm>
+#include <cstdarg>
+#include <cstdint>
 
 #include "anh/database/database.h"
+#include "anh/database/database_callback.h"
+#include "anh/database/database_implementation.h"
+#include "anh/database/database_implementation_mysql.h"
 
-
-void DatabaseManager::process() {
-    std::for_each(database_list_.begin(), database_list_.end(), 
-        [] (std::shared_ptr<Database> db) {
-            db->process();
-        });
+Transaction::Transaction(Database* database, DatabaseCallback callback)
+    : database_(database)
+    , callback_(callback)
+{
+    queries_.flush();
+    queries_ << "CALL "<< database_->galaxy() << ".sp_MultiTransaction(\"";
 }
 
 
-Database* DatabaseManager::connect(DBType type, 
-                                   const std::string& host, 
-                                   uint16_t port, 
-                                   const std::string& user, 
-                                   const std::string& pass, 
-                                   const std::string& schema)
-{
-    // Create our new Database object and initiailzie it.
-	auto database = std::make_shared<Database>(this, type, host, port, user, pass, schema, database_configuration_);
+Transaction::~Transaction() {
+    queries_.flush();
+}
 
-    // Add the new DB to our process list.
-    database_list_.push_back(database);
 
-    return database.get();
+void Transaction::addQuery(const char* query, ...) {
+    va_list	args;
+    va_start(args,query);
+    char localSql[2048], escapedSql[2500];
+    int32_t	len = vsnprintf(localSql, sizeof(localSql), query, args);
+
+    // need to escape
+    database_->escapeString(escapedSql, localSql, len);
+
+    queries_ << escapedSql << "$$";
+
+    va_end(args);
+}
+
+
+void Transaction::execute() {
+    queries_ << "\")";
+
+    database_->executeAsyncProcedure(queries_.str(), callback_);
+    database_->destroyTransaction(this);
 }

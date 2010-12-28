@@ -17,24 +17,15 @@
  along with MMOServer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef ANH_DATABASE_STATEMENT_H_
-#define ANH_DATABASE_STATEMENT_H_
+#include <gtest/gtest.h>
 
-#include <functional>
-#include <memory>
+#include "anh/convertable_string.h"
 
-namespace anh {
-namespace database {
+using anh::ConvertableString;
 
-class IStatement;
-
-typedef std::function<void (std::unique_ptr<IStatement> statement)> StatementCallback;
-
-class IStatement {
-
-};
-
-}  // namespace database
-}  // namespace anh
-
-#endif  // ANH_DATABASE_MYSQL_CONNECTION_H_
+/// This test shows how to find the 32bit checksum of a c-style string.
+TEST(ConvertableStringTest, CanConvertStringToInt) {
+    ConvertableString test_string("1234");
+    
+    EXPECT_EQ(1234, test_string.as<int>());
+}

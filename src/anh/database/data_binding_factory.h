@@ -25,33 +25,31 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ---------------------------------------------------------------------------------------
 */
 
-#include "anh/database/database_manager.h"
+#ifndef ANH_DATABASEMANAGER_DATABINDINGFACTORY_H
+#define ANH_DATABASEMANAGER_DATABINDINGFACTORY_H
 
-#include <algorithm>
+#include <cstdint>
 
-#include "anh/database/database.h"
+#include <boost/noncopyable.hpp>
+#include <boost/pool/pool.hpp>
 
+class DataBinding;
+struct DataField;
 
-void DatabaseManager::process() {
-    std::for_each(database_list_.begin(), database_list_.end(), 
-        [] (std::shared_ptr<Database> db) {
-            db->process();
-        });
-}
+class DataBindingFactory : private boost::noncopyable {
+public:
+    DataBindingFactory();
+    ~DataBindingFactory();
 
+    DataBinding* createDataBinding(uint16_t fieldCount);
+    void destroyDataBinding(DataBinding* binding);
 
-Database* DatabaseManager::connect(DBType type, 
-                                   const std::string& host, 
-                                   uint16_t port, 
-                                   const std::string& user, 
-                                   const std::string& pass, 
-                                   const std::string& schema)
-{
-    // Create our new Database object and initiailzie it.
-	auto database = std::make_shared<Database>(this, type, host, port, user, pass, schema, database_configuration_);
+    bool releasePoolMemory() {
+        return(binding_pool_.release_memory());
+    }
 
-    // Add the new DB to our process list.
-    database_list_.push_back(database);
+private:
+    boost::pool<boost::default_user_allocator_malloc_free>	binding_pool_;
+};
 
-    return database.get();
-}
+#endif // ANH_DATABASEMANAGER_DATABINDINGFACTORY_H

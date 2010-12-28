@@ -17,38 +17,13 @@
  along with MMOServer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef ANH_DATABASE_MYSQL_STATEMENT_H_
-#define ANH_DATABASE_MYSQL_STATEMENT_H_
+#ifndef ANH_DATABASE_DATABASE_CALLBACK_H_
+#define ANH_DATABASE_DATABASE_CALLBACK_H_
 
 #include <functional>
-#include <map>
-#include <memory>
-#include <string>
 
-#include <boost/any.hpp>
+class DatabaseResult;
 
-#include <boost/variant.hpp>
-#include <boost/lexical_cast.hpp>
+typedef std::function<void (DatabaseResult*)> DatabaseCallback;
 
-#include "anh/database/statement.h"
-
-namespace anh {
-namespace database {
-namespace mysql {
-
-class Statement : public IStatement {
-public:
-
-    template<typename T>
-    bool bindParam(std::string name, T callback) {
-        return true;
-    }
-
-    void execute() {}
-};
-
-}  // namespace mysql
-}  // namespace database
-}  // namespace anh
-
-#endif  // ANH_DATABASE_MYSQL_CONNECTION_H_
+#endif  // ANH_DATABASE_DATABASE_CALLBACK_H_

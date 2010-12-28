@@ -1,83 +1,82 @@
 /*
- This file is part of MMOServer. For more information, visit http://swganh.com
- 
- Copyright (c) 2006 - 2010 The SWG:ANH Team
+---------------------------------------------------------------------------------------
+This source file is part of SWG:ANH (Star Wars Galaxies - A New Hope - Server Emulator)
 
- MMOServer is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+For more information, visit http://www.swganh.com
 
- MMOServer is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+Copyright (c) 2006 - 2010 The SWG:ANH Team
+---------------------------------------------------------------------------------------
+Use of this source code is governed by the GPL v3 license that can be found
+in the COPYING file or at http://www.gnu.org/licenses/gpl-3.0.html
 
- You should have received a copy of the GNU General Public License
- along with MMOServer.  If not, see <http://www.gnu.org/licenses/>.
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+---------------------------------------------------------------------------------------
 */
 
-#ifndef ANH_DATABASE_DATABASE_MANAGER_H_
-#define ANH_DATABASE_DATABASE_MANAGER_H_
+#ifndef DATABASE_MANAGER_DATABASE_MANAGER_H_
+#define DATABASE_MANAGER_DATABASE_MANAGER_H_
 
+#include <cstdint>
 #include <list>
 #include <memory>
-#include <string>
-#include <tuple>
 
 #include <boost/noncopyable.hpp>
 
-namespace anh {
-namespace database {
+#include "anh/database/database_config.h"
+#include "anh/database/database_type.h"
 
-class IConnection;
-
-class IDatabaseManager {
-public:
-    virtual ~IDatabaseManager() = 0 {}
-    
-    /*! Processes all current database connections.
-    */
-    virtual void process() = 0;
-};
+class Database;
 
 /*! Manages multiple database connections.
 */
-class DatabaseManager : public IDatabaseManager , boost::noncopyable {
+class DatabaseManager : private boost::noncopyable {
 public:
-    DatabaseManager();
-    ~DatabaseManager();
-
-    /*! Connects to a specified database.
-    *
-    * \param dsn The data source name, contains the information needed to connect to a database.
-    * \param username The username for accessing the requested schema.
-    * \param password The password for accessing the requested schema.
-    *
-    * \return The instance of the database connection.
-    */
-    std::shared_ptr<IConnection> connect(const std::string& dsn, const std::string& username = "", const std::string& password = "");
+	/**
+	 * \brief Default constructor.
+	 *
+	 * \param db_config Database configuration options.
+	 * \see DatabaseConfig
+	 */
+	explicit DatabaseManager(const DatabaseConfig& database_configuration)
+		: database_configuration_(database_configuration) { }
 
     /*! Processes all current database connections.
     */
     void process();
 
-    std::shared_ptr<IConnection> connection(const std::string& schema) const;
-
-    /*! Parses a dsn string into it's 3 components, the database engine type 
-    * and the host and schema to connect to.
+    /*! Connects to a specified database.
     *
-    * \param dsn The dsn string to process.
-    * \return A tuple containing the individual components from a dsn string.
+    * \param host The database host to connect to.
+    * \param port The port of the database host to connect to.
+    * \param user The username for accessing the requested schema.
+    * \param pass The password for accessing the requested schema.
+    * \param schema The database to connect to.
+    *
+    * \return The instance of the database created after successful connection.
     */
-    std::tuple<std::string, std::string, std::string> parseDsn(const std::string& dsn) const;
+    Database* connect(DBType type, 
+        const std::string& host, 
+        uint16_t port, 
+        const std::string& user, 
+        const std::string& pass, 
+        const std::string& dbname);
 
 private:
-    typedef std::list<std::pair<std::string, std::shared_ptr<IConnection>>> ConnectionList;
-    ConnectionList connection_list_;
+    typedef std::list<std::shared_ptr<Database>> DatabaseList;
+    DatabaseList database_list_;
+	DatabaseConfig database_configuration_;
 };
 
-}  // namespace database
-}  // namespace anh
-
-#endif  // ANH_DATABASE_DATABASE_MANAGER_H_
+#endif  // DATABASE_MANAGER_DATABASE_MANAGER_H_

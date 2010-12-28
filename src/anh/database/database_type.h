@@ -25,33 +25,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ---------------------------------------------------------------------------------------
 */
 
-#include "anh/database/database_manager.h"
-
-#include <algorithm>
-
-#include "anh/database/database.h"
+#ifndef ANH_DATABASEMANAGER_DATABASETYPE_H
+#define ANH_DATABASEMANAGER_DATABASETYPE_H
 
 
-void DatabaseManager::process() {
-    std::for_each(database_list_.begin(), database_list_.end(), 
-        [] (std::shared_ptr<Database> db) {
-            db->process();
-        });
-}
+enum DBType {
+    DBTYPE_MYSQL = 0
+};
 
 
-Database* DatabaseManager::connect(DBType type, 
-                                   const std::string& host, 
-                                   uint16_t port, 
-                                   const std::string& user, 
-                                   const std::string& pass, 
-                                   const std::string& schema)
-{
-    // Create our new Database object and initiailzie it.
-	auto database = std::make_shared<Database>(this, type, host, port, user, pass, schema, database_configuration_);
-
-    // Add the new DB to our process list.
-    database_list_.push_back(database);
-
-    return database.get();
-}
+#endif // ANH_DATABASEMANAGER_DATABASETYPE_H
