@@ -34,10 +34,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <boost/noncopyable.hpp>
 
+#include <tbb/concurrent_queue.h>
+
 #include "anh/database/database_config.h"
 #include "anh/database/database_type.h"
 
+struct DatabaseJob;
 class Database;
+class DatabaseWorkerThread;
 
 /*! Manages multiple database connections.
 */
@@ -73,10 +77,20 @@ public:
         const std::string& pass, 
         const std::string& dbname);
 
+    
+
 private:
     typedef std::list<std::shared_ptr<Database>> DatabaseList;
     DatabaseList database_list_;
+
 	DatabaseConfig database_configuration_;
+    
+    typedef tbb::concurrent_queue<DatabaseJob*> DatabaseJobQueue;
+    typedef tbb::concurrent_queue<DatabaseWorkerThread*> DatabaseWorkerThreadQueue;
+
+    DatabaseJobQueue job_pending_queue_;
+    DatabaseJobQueue job_complete_queue_;
+    DatabaseWorkerThreadQueue idle_worker_queue_;
 };
 
 #endif  // DATABASE_MANAGER_DATABASE_MANAGER_H_
