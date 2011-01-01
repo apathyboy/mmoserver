@@ -22,13 +22,9 @@
 
 #include <cstdint>
 #include <memory>
-#include <queue>
 #include <string>
 
 #include <boost/noncopyable.hpp>
-
-#include <tbb/concurrent_hash_map.h>
-#include <tbb/concurrent_queue.h>
 
 #include "anh/hash_string.h"
 
@@ -40,56 +36,63 @@ namespace sql {
 namespace anh {
 namespace database {
     
-struct ConnectionData {
-    ConnectionData(std::string schema_, std::string host_, std::string username_, std::string password_)
-        : schema(std::move(schema_))
-        , host(std::move(host_))
-        , username(std::move(username_))
-        , password(std::move(password_))
-    {}
-
-    std::string schema;
-    std::string host;
-    std::string username;
-    std::string password;
-};
-
+/*! An identifier used to label different persistant data storage types.
+*/
 typedef anh::HashString StorageType;
-typedef tbb::concurrent_hash_map<StorageType, std::shared_ptr<ConnectionData>> ConnectionDataMap;
-typedef std::queue<std::shared_ptr<sql::Connection>> ConnectionPool;
-typedef tbb::concurrent_hash_map<StorageType, ConnectionPool> ConnectionPoolMap;
+
+class DatabaseManagerImpl;
 
 /*! Manages multithreaded database query processing.
 */
 class DatabaseManager : private boost::noncopyable {
 public:
 	/**
-	 * \brief Default constructor.
+	 * \brief Overloaded constructor taking an sql driver.
 	 *
-	 * \param db_config Database configuration options.
-	 * \see DatabaseConfig
+	 * \param driver An instance of the sql driver used to provide concrete 
+     *      functionality for the database layer.
 	 */
 	explicit DatabaseManager(sql::Driver* driver);
 
+    /// Destructor
     ~DatabaseManager();
 
-    bool hasStorageType(StorageType storage_type) const;
+    /*! Check to see whether a specified storage type has been registered with 
+    * the DatabaseManager instance or not.
+    *
+    * \return bool True if the storage type has been registered, false if not.
+    */
+    bool hasStorageType(const StorageType& storage_type) const;
 
-    bool registerStorageType(StorageType storage_type, const std::string& schema, const std::string& host, const std::string& username, const std::string& password);
+    /*! Registers a storage type with the DatabaseManager. This creates a connection
+    * to the datastore to validate the settings, which is then immediately placed
+    * in the connection pool for use.
+    *
+    * \return bool True if the storage type was registered, false if registration already exist.
+    */
+    bool registerStorageType(const StorageType& storage_type, const std::string& schema, const std::string& host, const std::string& username, const std::string& password);
 
-    bool hasConnection(StorageType storage_type) const;
+    /*! Check to see whether a connection exists already for a given storage type.
+    *
+    * \return bool True if a connection for the given storage type exists, false if not.
+    */
+    bool hasConnection(const StorageType& storage_type) const;
 
-    std::shared_ptr<sql::Connection> requestConnection(StorageType storage_type);
+    /*! Processes a request for a connection to a specific storage type. 
+    *
+    * \param storage_type The storage type a connection is being requested for.
+    * \return Returns a connection or nullptr if one could not be created, or if
+    *   the storage type has not been seen before.
+    */
+    std::shared_ptr<sql::Connection> getConnection(const StorageType& storage_type);
     
 private:
     DatabaseManager();
 
-    void recycleConnection_(StorageType storage_type, sql::Connection* connection);
-
-    sql::Driver* driver_;
-    
-    ConnectionDataMap connection_data_;
-    ConnectionPoolMap connections_;
+    // private implementation of the database manager internals make it easier
+    // to modify how the connection pooling works under the hood without affecting
+    // users of the api
+    std::unique_ptr<DatabaseManagerImpl> pimpl_;
 };
 
 }  // namespace database

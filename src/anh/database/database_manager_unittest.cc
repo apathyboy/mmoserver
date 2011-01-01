@@ -96,7 +96,7 @@ TEST_F(DatabaseManagerTest, CanRequestConnectionAfterRegistering) {
 
     EXPECT_TRUE(manager.hasConnection("my_storage_type"));
 
-    auto connection = manager.requestConnection("my_storage_type");
+    auto connection = manager.getConnection("my_storage_type");
 
     EXPECT_TRUE(connection);
 
@@ -114,10 +114,10 @@ TEST_F(DatabaseManagerTest, CanRequestMultipleConnections) {
         FAIL() << "No exceptions should be thrown during a registration with valid information";
     }
     
-    auto connection1 = manager.requestConnection("my_storage_type");
+    auto connection1 = manager.getConnection("my_storage_type");
     EXPECT_TRUE(connection1);
     
-    auto connection2 = manager.requestConnection("my_storage_type");
+    auto connection2 = manager.getConnection("my_storage_type");
     EXPECT_TRUE(connection2);
 }
 
@@ -140,7 +140,7 @@ TEST_F(DatabaseManagerTest, DeletingConnectionReturnsItToThePool) {
     // us to test the shared pointer deleter which should add the connection
     // back to the pool if it's still open.
     {
-        auto connection = manager.requestConnection("my_storage_type");
+        auto connection = manager.getConnection("my_storage_type");
 
         EXPECT_TRUE(connection);
 
