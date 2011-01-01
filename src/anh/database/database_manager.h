@@ -46,12 +46,12 @@ class DatabaseManagerImpl;
 */
 class DatabaseManager : private boost::noncopyable {
 public:
-	/**
-	 * \brief Overloaded constructor taking an sql driver.
-	 *
-	 * \param driver An instance of the sql driver used to provide concrete 
-     *      functionality for the database layer.
-	 */
+    /**
+    * \brief Overloaded constructor taking an sql driver.
+    *
+    * \param driver An instance of the sql driver used to provide concrete 
+    *      functionality for the database layer.
+    */
 	explicit DatabaseManager(sql::Driver* driver);
 
     /// Destructor
