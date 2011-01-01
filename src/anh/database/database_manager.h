@@ -87,6 +87,8 @@ public:
     std::shared_ptr<sql::Connection> getConnection(const StorageType& storage_type);
     
 private:
+    // disable the default constructor to ensure that DatabaseManager is always
+    // created with a driver instance
     DatabaseManager();
 
     // private implementation of the database manager internals make it easier
