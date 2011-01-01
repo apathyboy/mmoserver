@@ -49,6 +49,9 @@ public:
     /// Universal assignment operator.
     HashString& operator=(HashString other);
 
+    /// Conversion operator allows a hash string to be cast to a uint32_t
+    operator uint32_t () const;
+
     /*! Uses a less-than comparison on two HashStrings.
      *
      * This is a requirement for this data type to be used as a key value in

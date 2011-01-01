@@ -49,6 +49,10 @@ HashString& HashString::operator=(HashString other) {
     return *this;
 }
 
+HashString::operator uint32_t () const {
+    return ident();
+}
+
 bool HashString::operator<(const HashString& other) const {
     bool r = (ident() < other.ident());
     return r;
