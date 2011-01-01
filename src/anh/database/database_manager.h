@@ -52,7 +52,7 @@ public:
     * \param driver An instance of the sql driver used to provide concrete 
     *      functionality for the database layer.
     */
-	explicit DatabaseManager(sql::Driver* driver);
+    explicit DatabaseManager(sql::Driver* driver);
 
     /// Destructor
     ~DatabaseManager();
