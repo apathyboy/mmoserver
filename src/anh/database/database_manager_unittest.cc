@@ -17,6 +17,8 @@
  along with MMOServer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef ENABLE_SQL_TESTING
+
 #include <gtest/gtest.h>
 
 #include <driver/mysql_public_iface.h>
@@ -149,3 +151,5 @@ TEST_F(DatabaseManagerTest, DeletingConnectionReturnsItToThePool) {
     
     EXPECT_TRUE(manager.hasConnection("my_storage_type"));
 }
+
+#endif  // ENABLE_SQL_TESTING
