@@ -40,11 +40,49 @@ namespace database {
 */
 typedef anh::HashString StorageType;
 
+/*! Interface class that exposes an API for managing mysql connector/c++
+* connections.
+*/
+class DatabaseManagerInterface {
+public:    
+    /*! Check to see whether a specified storage type has been registered with 
+    * the DatabaseManager instance or not.
+    *
+    * \return bool True if the storage type has been registered, false if not.
+    */
+    virtual bool hasStorageType(const StorageType& storage_type) const = 0;
+
+    /*! Registers a storage type with the DatabaseManager. This creates a connection
+    * to the datastore to validate the settings, which is then immediately placed
+    * in the connection pool for use.
+    *
+    * \return bool True if the storage type was registered, false if registration already exist.
+    */
+    virtual bool registerStorageType(const StorageType& storage_type, const std::string& schema, const std::string& host, const std::string& username, const std::string& password) = 0;
+
+    /*! Check to see whether a connection exists already for a given storage type.
+    *
+    * \return bool True if a connection for the given storage type exists, false if not.
+    */
+    virtual bool hasConnection(const StorageType& storage_type) const = 0;
+
+    /*! Processes a request for a connection to a specific storage type. 
+    *
+    * \param storage_type The storage type a connection is being requested for.
+    * \return Returns a connection or nullptr if one could not be created, or if
+    *   the storage type has not been seen before.
+    */
+    virtual std::shared_ptr<sql::Connection> getConnection(const StorageType& storage_type) = 0;
+};
+
+
 class DatabaseManagerImpl;
 
-/*! Manages multithreaded database query processing.
+/*! Concrete implementation of the DatabaseManagerInterface API.
+*
+* \see DatabaseManagerInterface
 */
-class DatabaseManager : private boost::noncopyable {
+class DatabaseManager : public DatabaseManagerInterface, private boost::noncopyable {
 public:
     /**
     * \brief Overloaded constructor taking an sql driver.
@@ -54,36 +92,18 @@ public:
     */
     explicit DatabaseManager(sql::Driver* driver);
 
-    /// Destructor
     ~DatabaseManager();
 
-    /*! Check to see whether a specified storage type has been registered with 
-    * the DatabaseManager instance or not.
-    *
-    * \return bool True if the storage type has been registered, false if not.
-    */
+    /// \see DatabaseManagerInterface::hasStorageType
     bool hasStorageType(const StorageType& storage_type) const;
-
-    /*! Registers a storage type with the DatabaseManager. This creates a connection
-    * to the datastore to validate the settings, which is then immediately placed
-    * in the connection pool for use.
-    *
-    * \return bool True if the storage type was registered, false if registration already exist.
-    */
+    
+    /// \see DatabaseManagerInterface::registerStorageType
     bool registerStorageType(const StorageType& storage_type, const std::string& schema, const std::string& host, const std::string& username, const std::string& password);
-
-    /*! Check to see whether a connection exists already for a given storage type.
-    *
-    * \return bool True if a connection for the given storage type exists, false if not.
-    */
+    
+    /// \see DatabaseManagerInterface::hasConnection
     bool hasConnection(const StorageType& storage_type) const;
-
-    /*! Processes a request for a connection to a specific storage type. 
-    *
-    * \param storage_type The storage type a connection is being requested for.
-    * \return Returns a connection or nullptr if one could not be created, or if
-    *   the storage type has not been seen before.
-    */
+    
+    /// \see DatabaseManagerInterface::getConnection
     std::shared_ptr<sql::Connection> getConnection(const StorageType& storage_type);
     
 private:
