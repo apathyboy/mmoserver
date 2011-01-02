@@ -17,8 +17,8 @@
  along with MMOServer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef DATABASE_MANAGER_DATABASE_MANAGER_H_
-#define DATABASE_MANAGER_DATABASE_MANAGER_H_
+#ifndef ANH_DATABASE_DATABASE_MANAGER_H_
+#define ANH_DATABASE_DATABASE_MANAGER_H_
 
 #include <cstdint>
 #include <memory>
@@ -120,4 +120,4 @@ private:
 }  // namespace database
 }  // namespace anh
 
-#endif  // DATABASE_MANAGER_DATABASE_MANAGER_H_
+#endif  // ANH_DATABASE_DATABASE_MANAGER_H_
