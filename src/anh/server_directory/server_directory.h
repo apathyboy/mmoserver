@@ -20,13 +20,26 @@
 #ifndef ANH_SERVER_DIRECTORY_SERVER_DIRECTORY_H_
 #define ANH_SERVER_DIRECTORY_SERVER_DIRECTORY_H_
 
+#include <memory>
+#include <string>
+
+namespace sql {
+    class Connection;
+} // namespace anh::database
+
 namespace anh {
 namespace server_directory {
 
 /*! \brief ServerDirectory is a utility class intended to assist processes in
 * registering themselves and participating in a clustered environment.
 */
-class ServerDirectory {};
+class ServerDirectory {
+public:
+    ServerDirectory(std::shared_ptr<sql::Connection> database_connection, const std::string& cluster_name);
+
+private:
+    std::shared_ptr<sql::Connection> database_connection_;
+};
 
 }  // namespace server_directory
 }  // namespace anh

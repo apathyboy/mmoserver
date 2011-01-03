@@ -19,4 +19,12 @@
 
 #include "anh/server_directory/server_directory.h"
 
+#include "cppconn/connection.h"
+
 using namespace anh::server_directory;
+using namespace sql;
+using namespace std;
+
+ServerDirectory::ServerDirectory(shared_ptr<Connection> database_connection, const string& cluster_name) 
+    : database_connection_(database_connection)
+{}
