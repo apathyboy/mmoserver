@@ -32,6 +32,9 @@
 
 // Generate mock objects for the Mysql Connector/C++ interface.
 
+namespace anh {
+namespace database {
+
 class MockDriver : public sql::Driver {
 public:
     MOCK_METHOD3(connect, sql::Connection*(const sql::SQLString& hostName, const sql::SQLString& userName, const sql::SQLString& password));
@@ -194,5 +197,8 @@ public:
     MOCK_CONST_METHOD0(rowsCount, size_t());
     MOCK_CONST_METHOD0(wasNull, bool());
 };
+
+}  // namespace database
+}  // namespace anh
 
 #endif  // ANH_DATABASE_MOCK_CPPCONN_H_
