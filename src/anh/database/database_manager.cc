@@ -37,7 +37,7 @@ using namespace std;
 
 class anh::database::DatabaseManagerImpl {
 public:
-	explicit DatabaseManagerImpl(sql::Driver* driver)
+    explicit DatabaseManagerImpl(sql::Driver* driver)
         : driver_(driver) {}
 
     ~DatabaseManagerImpl() {
