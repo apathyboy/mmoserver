@@ -105,7 +105,7 @@ FUNCTION(AddMMOServerLibrary name)
 
     IF(_tests_list_length GREATER 0)
         # Create an executable for the test and link it to gtest and anh
-        INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
+        INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIR})
         ADD_EXECUTABLE(${name}_tests ${TEST_SOURCES})
         TARGET_LINK_LIBRARIES(${name}_tests 
             ${name}
@@ -116,6 +116,7 @@ FUNCTION(AddMMOServerLibrary name)
             debug ${Boost_SYSTEM_LIBRARY_DEBUG}
             debug ${Boost_THREAD_LIBRARY_DEBUG}
             debug ${GLOG_LIBRARY_DEBUG}
+            debug ${GMOCK_LIBRARY_DEBUG}
             debug ${TBB_LIBRARY_DEBUG}
             debug ${TBB_MALLOC_LIBRARY_DEBUG}      
             optimized ${Boost_DATE_TIME_LIBRARY_RELEASE}
@@ -123,6 +124,7 @@ FUNCTION(AddMMOServerLibrary name)
             optimized ${Boost_SYSTEM_LIBRARY_RELEASE}
             optimized ${Boost_THREAD_LIBRARY_RELEASE}
             optimized ${GLOG_LIBRARY_RELEASE}
+            optimized ${GMOCK_LIBRARY_RELEASE}
             optimized ${TBB_LIBRARY}
             optimized ${TBB_MALLOC_LIBRARY})
                 
