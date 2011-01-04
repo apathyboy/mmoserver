@@ -17,33 +17,36 @@
  along with MMOServer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifdef ENABLE_SQL_TESTING
-
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-#include <driver/mysql_public_iface.h>
+#include "anh/database/mock_cppconn.h"
 
 #include "anh/database/database_manager.h"
 
 using anh::database::DatabaseManager;
+using namespace testing;
 
+
+/// Test fixture for testing the DatabaseManager, provides setup/teardown
 class DatabaseManagerTest : public testing::Test {
 protected:
-    virtual void SetUp() {
-        host_ = "localhost";
-        username_ = "root";
-        password_ = "swganh";
-    }
+    virtual void SetUp();
+ 
+    // Generates expectations for a driver that will return N connections.
+    void generateExpectations(NiceMock<MockDriver>& mock_driver, int connections);
+    void generateDefaultConnectionExpectations(NiceMock<MockDriver>& mock_driver, MockConnection* mock_connection);
 
-    std::string host_;
-    std::string username_;
-    std::string password_;
+    sql::SQLString host_;
+    sql::SQLString username_;
+    sql::SQLString password_;
 };
 
 /// This test shows that a newly created DatabaseManager has no storage types
 /// registered by default.
 TEST_F(DatabaseManagerTest, NoStorageTypesRegisteredByDefault) {
-    DatabaseManager manager(sql::mysql::get_driver_instance());
+    MockDriver mock_driver;
+    DatabaseManager manager(&mock_driver);
     
     EXPECT_FALSE(manager.hasStorageType("my_storage_type"));
 }
@@ -51,14 +54,20 @@ TEST_F(DatabaseManagerTest, NoStorageTypesRegisteredByDefault) {
 /// This test shows that a newly created DatabaseManager has no connections
 /// registered by default.
 TEST_F(DatabaseManagerTest, NoConnectionsByDefault) {
-    DatabaseManager manager(sql::mysql::get_driver_instance());
+    MockDriver mock_driver;
+    DatabaseManager manager(&mock_driver);
     
     EXPECT_FALSE(manager.hasConnection("my_storage_type"));
 }
 
 /// This test shows how to register connection data for a storage type.
 TEST_F(DatabaseManagerTest, CanRegisterConnectionDataForStorageType) {
-    DatabaseManager manager(sql::mysql::get_driver_instance());
+    // Create a mock driver and set it up to expect a simple successful connection creation.
+    NiceMock<MockDriver> mock_driver;
+    generateExpectations(mock_driver, 1);
+
+    // Create the database manager with the mock driver.
+    DatabaseManager manager(&mock_driver);
     
     // The mysql library relies on 
     try {
@@ -72,7 +81,12 @@ TEST_F(DatabaseManagerTest, CanRegisterConnectionDataForStorageType) {
 
 /// This test shows how to register connection data for a storage type.
 TEST_F(DatabaseManagerTest, RegisterConnectionDataCreatesConnectionPool) {
-    DatabaseManager manager(sql::mysql::get_driver_instance());
+    // Create a mock driver and set it up to expect a simple successful connection creation.
+    NiceMock<MockDriver> mock_driver;
+    generateExpectations(mock_driver, 1);
+
+    // Create the database manager with the mock driver.
+    DatabaseManager manager(&mock_driver);
     
     // The mysql library relies on 
     try {
@@ -87,7 +101,12 @@ TEST_F(DatabaseManagerTest, RegisterConnectionDataCreatesConnectionPool) {
 /// Requesting a connection will pull one from the connection pool before
 /// resorting to creating a new one
 TEST_F(DatabaseManagerTest, CanRequestConnectionAfterRegistering) {
-    DatabaseManager manager(sql::mysql::get_driver_instance());
+    // Create a mock driver and set it up to expect a simple successful connection creation.
+    NiceMock<MockDriver> mock_driver;
+    generateExpectations(mock_driver, 1);
+
+    // Create the database manager with the mock driver.
+    DatabaseManager manager(&mock_driver);
     
     // The mysql library relies on 
     try {
@@ -106,8 +125,12 @@ TEST_F(DatabaseManagerTest, CanRequestConnectionAfterRegistering) {
 }
 
 /// Can request multiple connections
-TEST_F(DatabaseManagerTest, CanRequestMultipleConnections) {
-    DatabaseManager manager(sql::mysql::get_driver_instance());
+TEST_F(DatabaseManagerTest, CanRequestMultipleConnections) {    
+    // Create a mock driver and set it up to expect a simple successful connection creation.
+    NiceMock<MockDriver> mock_driver;
+    generateExpectations(mock_driver, 2);
+
+    DatabaseManager manager(&mock_driver);
     
     // The mysql library relies on 
     try {
@@ -116,18 +139,20 @@ TEST_F(DatabaseManagerTest, CanRequestMultipleConnections) {
         FAIL() << "No exceptions should be thrown during a registration with valid information";
     }
     
-    auto connection1 = manager.getConnection("my_storage_type");
-    EXPECT_TRUE(connection1);
+    std::shared_ptr<sql::Connection> conn1 = manager.getConnection("my_storage_type");
+    EXPECT_TRUE(conn1);
     
-    auto connection2 = manager.getConnection("my_storage_type");
-    EXPECT_TRUE(connection2);
+    std::shared_ptr<sql::Connection> conn2 = manager.getConnection("my_storage_type");
+    EXPECT_TRUE(conn2);
 }
-
-
 
 /// Connections return to the pool when they go out of scope
 TEST_F(DatabaseManagerTest, DeletingConnectionReturnsItToThePool) {
-    DatabaseManager manager(sql::mysql::get_driver_instance());
+    // Create a mock driver and set it up to expect a simple successful connection creation.
+    NiceMock<MockDriver> mock_driver;
+    generateExpectations(mock_driver, 1);
+
+    DatabaseManager manager(&mock_driver);
     
     // The mysql library relies on 
     try {
@@ -152,4 +177,41 @@ TEST_F(DatabaseManagerTest, DeletingConnectionReturnsItToThePool) {
     EXPECT_TRUE(manager.hasConnection("my_storage_type"));
 }
 
-#endif  // ENABLE_SQL_TESTING
+
+/*****************************************************************************/
+// Implementation for the test fixture //
+
+void DatabaseManagerTest::SetUp() {
+    host_ = "localhost";
+    username_ = "root";
+    password_ = "swganh";
+}
+
+void DatabaseManagerTest::generateExpectations(NiceMock<MockDriver>& mock_driver, int connections) {
+    for (int i=0; i < connections; ++i) {
+        MockConnection* connection = new MockConnection();
+        
+        generateDefaultConnectionExpectations(mock_driver, connection);
+
+        // We should expect a call to the driver's connect for a new connection
+        // with these parameters. After returning the expectation should expire.
+        EXPECT_CALL(mock_driver, connect(host_, username_, password_))
+            .WillOnce(Return(connection))
+            .RetiresOnSaturation();
+    }
+}
+
+void DatabaseManagerTest::generateDefaultConnectionExpectations(NiceMock<MockDriver>& mock_driver, MockConnection* mock_connection) {    
+    // Expect the database manager to set the schema.
+    EXPECT_CALL(*mock_connection, setSchema(sql::SQLString("galaxy")))
+        .Times(1);
+    
+    EXPECT_CALL(*mock_connection, isClosed())
+        .WillRepeatedly(Return(false));
+
+    // Expect isClosed() to return true after a call to close()
+    Expectation expect_close1 = EXPECT_CALL(*mock_connection, close());
+    EXPECT_CALL(*mock_connection, isClosed())
+        .After(expect_close1)
+        .WillOnce(Return(true));
+}
