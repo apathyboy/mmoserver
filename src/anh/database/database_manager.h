@@ -45,6 +45,8 @@ typedef anh::HashString StorageType;
 */
 class DatabaseManagerInterface {
 public:    
+    virtual ~DatabaseManagerInterface() {}
+
     /*! Check to see whether a specified storage type has been registered with 
     * the DatabaseManager instance or not.
     *
