@@ -75,6 +75,7 @@ FUNCTION(AddMMOServerLibrary name)
             FILE(GLOB ADDITIONAL_SOURCES ${_source_dir}/*.cc ${_source_dir}/*.cpp)
             FILE(GLOB ADDITIONAL_HEADERS ${_source_dir}/*.h)
             FILE(GLOB ADDITIONAL_TEST_SOURCES ${_source_dir}/*_unittest.cc ${_source_dir}/*_unittest.cpp)
+            FILE(GLOB MOCK_HEADERS ${_source_dir}/mock_*.h)
             
             # convert the / to \\ in the path so the source group is created properly
             string(REPLACE "/" "\\\\" _source_dir "${_source_dir}")
@@ -83,13 +84,14 @@ FUNCTION(AddMMOServerLibrary name)
 
             LIST(APPEND SOURCES ${ADDITIONAL_SOURCES})
             LIST(APPEND HEADERS ${ADDITIONAL_HEADERS})
-            LIST(APPEND TEST_SOURCES ${ADDITIONAL_TEST_SOURCES})
+            LIST(APPEND TEST_SOURCES ${ADDITIONAL_TEST_SOURCES} ${MOCK_HEADERS})
         ENDFOREACH()
     ENDIF()
     
     LIST(LENGTH TEST_SOURCES _tests_list_length)    
     IF(_tests_list_length GREATER 0)
-        LIST(REMOVE_ITEM SOURCES ${TEST_SOURCES}) # Remove the unit tests from the sources list.        
+        LIST(REMOVE_ITEM SOURCES ${TEST_SOURCES}) # Remove the unit tests from the sources list. 
+        LIST(REMOVE_ITEM HEADERS ${TEST_SOURCES}) # Remove the unit tests from the sources list.        
     ENDIF()
     
     IF(_includes_list_length GREATER 0)
