@@ -24,12 +24,46 @@
 using namespace anh::server_directory;
 using namespace std;
 
-ServerDirectory::ServerDirectory(shared_ptr<DatastoreInterface> datastore, const string& cluster_name) 
+ServerDirectory::ServerDirectory(shared_ptr<DatastoreInterface> datastore, const string& cluster_name, bool create_cluster) 
     : datastore_(datastore)
+    , active_cluster_(nullptr)
+    , active_process_(nullptr)
 {
-    active_cluster_ = make_shared<Cluster>(datastore->findClusterByName(cluster_name));
+    active_cluster_ = datastore->findClusterByName(cluster_name);
+    
+    if (!active_cluster_) {
+        // if no cluster was found and no request to create it was made, fail now
+        if (! create_cluster) {
+            throw InvalidClusterError(std::string("Attempted to join an invalid cluster: ").append(cluster_name));
+        }
+
+        if (!(active_cluster_ = datastore->createCluster(cluster_name))) {
+            throw InvalidClusterError(std::string("Attempt to create cluster failed: ").append(cluster_name));
+        }
+    }
 }
 
-Cluster ServerDirectory::active_cluster() const {
+Cluster ServerDirectory::cluster() const {
     return *active_cluster_;
+}
+
+Process ServerDirectory::process() const {
+    return *active_process_;
+}
+
+bool ServerDirectory::registerProcess(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port) {
+    if (active_process_ = datastore_->createProcess(active_cluster_, name, process_type, version, address, tcp_port, udp_port)) {
+        return true;
+    }
+
+    return false;
+}    
+
+bool ServerDirectory::makePrimaryProcess(const Process& process) {
+    active_cluster_->primary_id(process.id());
+    return true;
+}
+
+void ServerDirectory::pulse() {
+    active_process_->last_pulse(datastore_->getClusterTimestamp(active_cluster_));
 }

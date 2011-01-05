@@ -21,6 +21,7 @@
 #define ANH_SERVER_DIRECTORY_SERVER_DIRECTORY_H_
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include "anh/server_directory/cluster.h"
@@ -31,18 +32,38 @@ namespace server_directory {
 
 class DatastoreInterface;
 
+class InvalidClusterError : public std::runtime_error {
+public:
+    InvalidClusterError(const std::string& message = "") 
+        : std::runtime_error(message) {}
+};
+
+class InvalidProcessError : public std::runtime_error {
+public:
+    InvalidProcessError(const std::string& message = "") 
+        : std::runtime_error(message) {}
+};
+
 /*! \brief ServerDirectory is a utility class intended to assist processes in
 * registering themselves and participating in a clustered environment.
 */
 class ServerDirectory {
 public:
-    ServerDirectory(std::shared_ptr<DatastoreInterface> datastore, const std::string& cluster_name);
+    ServerDirectory(std::shared_ptr<DatastoreInterface> datastore, const std::string& cluster_name, bool create_cluster = false);
 
-    Cluster active_cluster() const;
+    Cluster cluster() const;
+    Process process() const;
+
+    bool registerProcess(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port);
+    
+    bool makePrimaryProcess(const Process& process);
+
+    void pulse();
 
 private:
     std::shared_ptr<DatastoreInterface> datastore_;
     std::shared_ptr<Cluster> active_cluster_;
+    std::shared_ptr<Process> active_process_;
 };
 
 }  // namespace server_directory

@@ -75,6 +75,10 @@ uint32_t Cluster::primary_id() const {
     return primary_id_;
 }
 
+void Cluster::primary_id(uint32_t primary_id) {
+    primary_id_ = primary_id;
+}
+
 const std::string& Cluster::name() const {
     return name_;
 }

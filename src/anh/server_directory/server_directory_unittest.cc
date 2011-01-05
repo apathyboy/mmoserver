@@ -20,6 +20,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 #include "anh/server_directory/cluster.h"
 #include "anh/server_directory/datastore.h"
 #include "anh/server_directory/process.h"
@@ -27,7 +29,9 @@
 
 using namespace anh::server_directory;
 using namespace std;
+using namespace boost::posix_time;
 using namespace testing;
+
 
 // Test harness for the ServerDirectory unit tests, provides a database_connection_
 // to use for testing.
@@ -35,19 +39,29 @@ class ServerDirectoryTest : public testing::Test {
 protected:
     virtual void SetUp() {
         test_cluster_ = make_shared<Cluster>(getTestCluster());
+        test_process_ = make_shared<Process>(getTestProcess());
     }
 
     Cluster getTestCluster() {
-        Cluster cluster(1, 1, "test_cluster", Cluster::OFFLINE, "", "");
+        Cluster cluster(1, 0, "test_cluster", Cluster::OFFLINE, "1970-01-01 00:00:01", "1970-01-01 00:00:01");
         return cluster;
+    }
+    
+    Process getTestProcess() {
+        Process process(1, 1, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, Process::OFFLINE, "1970-01-01 00:00:01");
+        return process;
     }
 
     std::shared_ptr<Cluster> test_cluster_;
+    std::shared_ptr<Process> test_process_;
 };
 
 class MockDatastore : public DatastoreInterface {
 public:
-    MOCK_CONST_METHOD1(findClusterByName, Cluster(const std::string& name));
+    MOCK_CONST_METHOD1(findClusterByName, shared_ptr<Cluster>(const std::string& name));
+    MOCK_CONST_METHOD1(createCluster, shared_ptr<Cluster>(const std::string& name));
+    MOCK_CONST_METHOD7(createProcess, shared_ptr<Process>(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port));
+    MOCK_CONST_METHOD1(getClusterTimestamp, std::string(std::shared_ptr<Cluster> cluster));
 };
 
 /// Creating and using an instance of ServerDirectory requires a valid cluster
@@ -55,11 +69,135 @@ public:
 TEST_F(ServerDirectoryTest, CreatingServerDirectoryJoinsToCluster) {
     auto datastore = make_shared<MockDatastore>();
     EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
-        .WillOnce(Return(*test_cluster_));
+        .WillOnce(Return(test_cluster_));
         
-    ServerDirectory server_directory(datastore, "test_cluster");
+    try {
+        ServerDirectory server_directory(datastore, "test_cluster");
     
-    Cluster cluster = server_directory.active_cluster();
+        Cluster cluster = server_directory.cluster();
 
-    EXPECT_EQ("test_cluster", cluster.name());
+        EXPECT_EQ("test_cluster", cluster.name());
+    } catch(...) {
+        FAIL() << "No exceptions should be thrown during a successful join";
+    }
+}
+
+/// When creating an instance of ServerDirectory with an invalid cluster name
+/// an InvalidCluster exception is thrown.
+TEST_F(ServerDirectoryTest, JoiningInvalidClusterThrowsException) {
+    auto datastore = make_shared<MockDatastore>();
+    EXPECT_CALL(*datastore, findClusterByName("bad_cluster"))
+        .WillOnce(Return(nullptr));
+
+    try {
+        ServerDirectory server_directory(datastore, "bad_cluster");
+        FAIL() << "An exception should be thrown when given an invalid cluster name";
+    } catch(const InvalidClusterError& /*e*/) {
+        SUCCEED();
+    }
+}
+
+/// Passing an optional parameter to the constructor while create a cluster
+/// and set it as the active cluster.
+TEST_F(ServerDirectoryTest, CanCreateClusterWhenJoining) {
+    auto datastore = make_shared<MockDatastore>();
+    EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
+        .WillOnce(Return(nullptr));
+    EXPECT_CALL(*datastore, createCluster("test_cluster"))
+        .WillOnce(Return(test_cluster_));
+    
+    try {
+        ServerDirectory server_directory(datastore, "test_cluster", true);
+        
+        Cluster cluster = server_directory.cluster();
+
+        EXPECT_EQ("test_cluster", cluster.name());
+    } catch(...) {
+        FAIL() << "No exceptions should be thrown during a successful create/join";
+    }
+}
+
+/// Registering a process makes it the active process.
+TEST_F(ServerDirectoryTest, RegisteringProcessMakesItActive) {
+    auto datastore = make_shared<MockDatastore>();
+    EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
+        .WillOnce(Return(test_cluster_));
+
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+        .WillOnce(Return(test_process_));
+
+    try {
+        ServerDirectory server_directory(datastore, "test_cluster");
+
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+
+        Process process = server_directory.process();
+        
+        EXPECT_EQ("process_name", process.name());
+        EXPECT_EQ("test_process", process.type());
+    } catch(...) {
+        FAIL() << "No exceptions should be thrown during a successful create/join";
+    }
+}
+
+TEST_F(ServerDirectoryTest, CanMakeActiveProcessThePrimaryClusterProcess) {
+    auto datastore = make_shared<MockDatastore>();
+    EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
+        .WillOnce(Return(test_cluster_));
+
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+        .WillOnce(Return(test_process_));
+
+    try {
+        ServerDirectory server_directory(datastore, "test_cluster");
+
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+        
+        Cluster cluster = server_directory.cluster();
+        Process process = server_directory.process();
+
+        EXPECT_NE(cluster.primary_id(), process.id());
+
+        EXPECT_TRUE(server_directory.makePrimaryProcess(process));
+        
+        cluster = server_directory.cluster();
+        process = server_directory.process();
+
+        EXPECT_EQ(cluster.primary_id(), process.id());
+
+    } catch(...) {
+        FAIL() << "No exceptions should be thrown during a successful create/join";
+    }
+}
+
+TEST_F(ServerDirectoryTest, PulsingUpdatesActiveProcessTimestamp) {
+    auto datastore = make_shared<MockDatastore>();
+    EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
+        .WillOnce(Return(test_cluster_));
+
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+        .WillOnce(Return(test_process_));
+
+    EXPECT_CALL(*datastore, getClusterTimestamp(_))
+        .WillOnce(Return(std::string("1970-01-01 00:01:01")));
+
+    try {
+        ServerDirectory server_directory(datastore, "test_cluster");
+
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+        
+        Process process = server_directory.process();
+        std::string registration_time = process.last_pulse();
+        
+        server_directory.pulse();
+                
+        process = server_directory.process();
+        std::string pulse_time = process.last_pulse();
+        
+        EXPECT_NE(registration_time, pulse_time);
+        EXPECT_LT(ptime(time_from_string(registration_time)),
+                  ptime(time_from_string(pulse_time)));
+    } catch(...) {
+        FAIL() << "No exceptions should be thrown during a successful create/join";
+    }
 }

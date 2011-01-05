@@ -51,6 +51,7 @@ public:
     */
     Process(uint32_t id,
             uint32_t cluster_id,
+            const std::string& name,
             const std::string& type,
             const std::string& version,
             const std::string& address,
@@ -85,6 +86,12 @@ public:
     * \returns Returns The id of the cluster this process belongs to.
     */
     uint32_t cluster_id() const;
+
+    /*! Returns The name of the process.
+    *
+    * \returns Returns The name of the process.
+    */
+    const std::string& name() const;    
 
     /*! Returns The type of the process.
     *
@@ -129,10 +136,15 @@ public:
     const std::string& last_pulse() const;
     
 private:
+    friend class ServerDirectory;
+
     Process();
+
+    void last_pulse(std::string last_pulse);
     
     uint32_t id_;
     uint32_t cluster_id_;
+    std::string name_;
     std::string type_;
     std::string version_;
     std::string address_;

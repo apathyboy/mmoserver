@@ -102,7 +102,11 @@ public:
     const std::string& updated_at() const;
 
 private:
+    friend class ServerDirectory;
+
     Cluster();
+
+    void primary_id(uint32_t primary_id);
     
     uint32_t id_;
     uint32_t primary_id_;

@@ -20,6 +20,8 @@
 #ifndef ANH_SERVER_DIRECTORY_DATASTORE_H_
 #define ANH_SERVER_DIRECTORY_DATASTORE_H_
 
+#include <memory>
+
 #include "anh/server_directory/cluster.h"
 #include "anh/server_directory/process.h"
 
@@ -30,7 +32,11 @@ class DatastoreInterface {
 public:
     virtual ~DatastoreInterface() {}
 
-    virtual Cluster findClusterByName(const std::string& name) const = 0;
+    virtual std::shared_ptr<Cluster> findClusterByName(const std::string& name) const = 0;
+    virtual std::shared_ptr<Cluster> createCluster(const std::string& name) const = 0;
+    virtual std::shared_ptr<Process> createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port) const = 0;
+
+    virtual std::string getClusterTimestamp(std::shared_ptr<Cluster> cluster) const = 0;
 };
 
 }  // namespace server_directory

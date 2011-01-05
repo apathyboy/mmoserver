@@ -23,6 +23,7 @@ using namespace anh::server_directory;
 
 Process::Process(uint32_t id,
                  uint32_t cluster_id,
+                 const std::string& name,
                  const std::string& type,
                  const std::string& version,
                  const std::string& address,
@@ -32,6 +33,7 @@ Process::Process(uint32_t id,
                  const std::string& last_pulse)
     : id_(id)
     , cluster_id_(cluster_id)
+    , name_(name)
     , type_(type)
     , version_(version)
     , address_(address)
@@ -46,6 +48,7 @@ Process::~Process() {}
 Process::Process(const Process& other) {
     id_ = other.id_;
     cluster_id_ = other.cluster_id_;
+    name_ = other.name_;
     type_ = other.type_;
     version_ = other.version_;
     address_ = other.address_;
@@ -58,6 +61,7 @@ Process::Process(const Process& other) {
 Process::Process(Process&& other) {
     id_ = other.id_;
     cluster_id_ = other.cluster_id_;
+    name_ = std::move(other.name_);
     type_ = std::move(other.type_);
     version_ = std::move(other.version_);
     address_ = std::move(other.address_);
@@ -70,6 +74,7 @@ Process::Process(Process&& other) {
 void Process::swap(Process& other) {
     std::swap(other.id_, id_);
     std::swap(other.cluster_id_, cluster_id_);
+    std::swap(other.name_, name_);
     std::swap(other.type_, type_);
     std::swap(other.version_, version_);
     std::swap(other.address_, address_);
@@ -90,6 +95,10 @@ uint32_t Process::id() const {
 
 uint32_t Process::cluster_id() const {
     return cluster_id_;
+}
+
+const std::string& Process::name() const {
+    return name_;
 }
 
 const std::string& Process::type() const {
@@ -118,4 +127,8 @@ Process::StatusType Process::status() const {
 
 const std::string& Process::last_pulse() const {
     return last_pulse_;
+}
+
+void Process::last_pulse(std::string last_pulse) {
+    last_pulse_ = std::move(last_pulse);
 }
