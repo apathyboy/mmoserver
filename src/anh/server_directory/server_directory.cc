@@ -19,12 +19,17 @@
 
 #include "anh/server_directory/server_directory.h"
 
-#include "cppconn/connection.h"
+#include "anh/server_directory/datastore.h"
 
 using namespace anh::server_directory;
-using namespace sql;
 using namespace std;
 
-ServerDirectory::ServerDirectory(shared_ptr<Connection> database_connection, const string& cluster_name) 
-    : database_connection_(database_connection)
-{}
+ServerDirectory::ServerDirectory(shared_ptr<DatastoreInterface> datastore, const string& cluster_name) 
+    : datastore_(datastore)
+{
+    active_cluster_ = make_shared<Cluster>(datastore->findClusterByName(cluster_name));
+}
+
+Cluster ServerDirectory::active_cluster() const {
+    return *active_cluster_;
+}

@@ -18,35 +18,48 @@
 */
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-#include <driver/mysql_public_iface.h>
-
+#include "anh/server_directory/cluster.h"
+#include "anh/server_directory/datastore.h"
+#include "anh/server_directory/process.h"
 #include "anh/server_directory/server_directory.h"
 
 using namespace anh::server_directory;
 using namespace std;
+using namespace testing;
 
-// using namespace anh::server_directory;
-
+// Test harness for the ServerDirectory unit tests, provides a database_connection_
+// to use for testing.
 class ServerDirectoryTest : public testing::Test {
 protected:
     virtual void SetUp() {
-        database_connection_ = std::shared_ptr<sql::Connection>(sql::mysql::get_driver_instance()->connect(
-            "localhost", "root", "swganh"
-            ));
-        database_connection_->setSchema("config");
+        test_cluster_ = make_shared<Cluster>(getTestCluster());
     }
-    
-    // virtual void TearDown() {}
 
-    std::shared_ptr<sql::Connection> database_connection_;
+    Cluster getTestCluster() {
+        Cluster cluster(1, 1, "test_cluster", Cluster::OFFLINE, "", "");
+        return cluster;
+    }
+
+    std::shared_ptr<Cluster> test_cluster_;
+};
+
+class MockDatastore : public DatastoreInterface {
+public:
+    MOCK_CONST_METHOD1(findClusterByName, Cluster(const std::string& name));
 };
 
 /// Creating and using an instance of ServerDirectory requires a valid cluster
 /// so the process of constructing should join with a cluster.
-TEST_F(ServerDirectoryTest, ByDefaultServerDirectoryHasNoCluster) {
-    ServerDirectory(database_connection_, "test_cluster");
+TEST_F(ServerDirectoryTest, CreatingServerDirectoryJoinsToCluster) {
+    auto datastore = make_shared<MockDatastore>();
+    EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
+        .WillOnce(Return(*test_cluster_));
+        
+    ServerDirectory server_directory(datastore, "test_cluster");
+    
+    Cluster cluster = server_directory.active_cluster();
 
-//    ServerDirectory server_directory(database_manager, "test_cluster");
-//    EXPECT_FALSE(server_directory.getActiveCluster());
+    EXPECT_EQ("test_cluster", cluster.name());
 }

@@ -23,22 +23,26 @@
 #include <memory>
 #include <string>
 
-namespace sql {
-    class Connection;
-} // namespace anh::database
+#include "anh/server_directory/cluster.h"
+#include "anh/server_directory/process.h"
 
 namespace anh {
 namespace server_directory {
+
+class DatastoreInterface;
 
 /*! \brief ServerDirectory is a utility class intended to assist processes in
 * registering themselves and participating in a clustered environment.
 */
 class ServerDirectory {
 public:
-    ServerDirectory(std::shared_ptr<sql::Connection> database_connection, const std::string& cluster_name);
+    ServerDirectory(std::shared_ptr<DatastoreInterface> datastore, const std::string& cluster_name);
+
+    Cluster active_cluster() const;
 
 private:
-    std::shared_ptr<sql::Connection> database_connection_;
+    std::shared_ptr<DatastoreInterface> datastore_;
+    std::shared_ptr<Cluster> active_cluster_;
 };
 
 }  // namespace server_directory
