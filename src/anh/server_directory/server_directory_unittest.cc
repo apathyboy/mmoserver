@@ -43,7 +43,7 @@ protected:
     }
 
     Cluster getTestCluster() {
-        Cluster cluster(1, 0, "test_cluster", Cluster::OFFLINE, "1970-01-01 00:00:01", "1970-01-01 00:00:01");
+        Cluster cluster(1, 2, "test_cluster", Cluster::OFFLINE, "1970-01-01 00:00:01", "1970-01-01 00:00:01");
         return cluster;
     }
     
@@ -67,6 +67,7 @@ public:
     MOCK_CONST_METHOD1(deleteProcessById, bool(uint32_t id));
     MOCK_CONST_METHOD0(getClusterMap, ClusterMap());
     MOCK_CONST_METHOD1(getProcessMap, ProcessMap(uint32_t cluster_id));
+    MOCK_CONST_METHOD1(prepareTimestampForStorage, std::string(const std::string& timestamp));
 };
 
 /// Creating and using an instance of ServerDirectory requires a valid cluster

@@ -19,6 +19,8 @@
 
 #include "anh/server_directory/server_directory.h"
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 #include "anh/server_directory/datastore.h"
 
 using namespace anh::server_directory;
@@ -83,10 +85,21 @@ bool ServerDirectory::makePrimaryProcess(shared_ptr<Process> process) {
 }
 
 void ServerDirectory::pulse() {
-    active_process_->last_pulse(datastore_->getClusterTimestamp(active_cluster_));
-    datastore_->saveProcess(active_process_);
+    if (active_process_) {
+        std::string last_pulse = "";
+        if (active_cluster_ && active_cluster_->primary_id() != 0) {
+            last_pulse = datastore_->getClusterTimestamp(active_cluster_);
+        } else {
+            last_pulse = boost::posix_time::to_simple_string(boost::posix_time::microsec_clock::local_time());
+        }
 
-    active_cluster_ = datastore_->findClusterById(active_cluster_->id());
+        active_process_->last_pulse(last_pulse);
+        datastore_->saveProcess(active_process_);
+    }
+
+    if (active_cluster_) {
+        active_cluster_ = datastore_->findClusterById(active_cluster_->id());
+    }
 }
 
 ClusterMap ServerDirectory::getClusterSnapshot() const {

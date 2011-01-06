@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <string>
 
 #include <boost/noncopyable.hpp>
 
@@ -54,6 +55,7 @@ public:
 
     virtual std::map<uint32_t, std::shared_ptr<Cluster>> getClusterMap() const = 0;
     virtual std::map<uint32_t, std::shared_ptr<Process>> getProcessMap(uint32_t cluster_id) const = 0;
+    virtual std::string prepareTimestampForStorage(const std::string& timestamp) const = 0;
 };
 
 class Datastore : public DatastoreInterface , boost::noncopyable {
@@ -74,11 +76,10 @@ public:
     
     std::map<uint32_t, std::shared_ptr<Cluster>> getClusterMap() const;
     std::map<uint32_t, std::shared_ptr<Process>> getProcessMap(uint32_t cluster_id) const;
+    std::string prepareTimestampForStorage(const std::string& timestamp) const;
 private:
     Datastore();
-
-    std::string prepareTimestampForStorage_(const std::string& timestamp) const;
-
+    
     std::shared_ptr<sql::Connection> connection_;
 };
 

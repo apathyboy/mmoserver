@@ -111,7 +111,12 @@ std::shared_ptr<Process> Datastore::createProcess(std::shared_ptr<Cluster> clust
                              "updated_at) "
         "VALUES(?, ?, ?, ?, INET_ATON(?), ?, ?, 0, NOW(), NOW(), NOW())"));
 
-    statement->setInt(1, cluster->id());
+    uint32_t cluster_id = 0;
+    if (cluster) {
+        cluster_id = cluster->id();
+    }
+
+    statement->setInt(1, cluster_id);
     statement->setString(2, name);
     statement->setString(3, type);
     statement->setString(4, version);
@@ -160,13 +165,13 @@ std::string Datastore::getClusterTimestamp(std::shared_ptr<Cluster> cluster) con
 
 void Datastore::saveProcess(std::shared_ptr<Process> process) const {
     std::unique_ptr<sql::PreparedStatement> statement(connection_->prepareStatement(
-        "UPDATE process SET address = ?, tcp_port = ?, udp_port = ?, status = ?, last_pulse = ? WHERE id = ?"));
+        "UPDATE process SET address = INET_ATON(?), tcp_port = ?, udp_port = ?, status = ?, last_pulse = ? WHERE id = ?"));
     
     statement->setString(1, process->address());
     statement->setUInt(2, process->tcp_port());
     statement->setUInt(3, process->udp_port());
     statement->setInt(4, process->status());
-    statement->setString(5, prepareTimestampForStorage_(process->last_pulse()));
+    statement->setString(5, prepareTimestampForStorage(process->last_pulse()));
     statement->setUInt(6, process->id());
     statement->executeUpdate();
 }
@@ -292,11 +297,11 @@ std::map<uint32_t, std::shared_ptr<Process>> Datastore::getProcessMap(uint32_t c
     return map;
 }
 
-std::string Datastore::prepareTimestampForStorage_(const std::string& timestamp) const {    
+std::string Datastore::prepareTimestampForStorage(const std::string& timestamp) const {    
     std::stringstream ss;
     
-    boost::posix_time::time_facet facet("%Y%m%d%H%M%S%F");    
-    ss.imbue(std::locale(ss.getloc(), &facet));
+    boost::posix_time::time_facet* facet = new boost::posix_time::time_facet("%Y%m%d%H%M%S%F");    
+    ss.imbue(std::locale(ss.getloc(), facet));
     
     ss << boost::posix_time::time_from_string(timestamp);
     
