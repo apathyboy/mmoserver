@@ -24,6 +24,10 @@
 using namespace anh::server_directory;
 using namespace std;
 
+ServerDirectory::ServerDirectory(shared_ptr<DatastoreInterface> datastore) 
+    : datastore_(datastore)
+{}
+
 ServerDirectory::ServerDirectory(shared_ptr<DatastoreInterface> datastore, const string& cluster_name, bool create_cluster) 
     : datastore_(datastore)
     , active_cluster_(nullptr)
@@ -51,7 +55,7 @@ shared_ptr<Process> ServerDirectory::process() const {
     return active_process_;
 }
 
-bool ServerDirectory::registerProcess(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port) {
+bool ServerDirectory::registerProcess(const string& name, const string& process_type, const string& version, const string& address, uint16_t tcp_port, uint16_t udp_port) {
     if (active_process_ = datastore_->createProcess(active_cluster_, name, process_type, version, address, tcp_port, udp_port)) {
         return true;
     }
@@ -59,7 +63,7 @@ bool ServerDirectory::registerProcess(const std::string& name, const std::string
     return false;
 }
 
-bool ServerDirectory::removeProcess(std::shared_ptr<Process>& process) {
+bool ServerDirectory::removeProcess(shared_ptr<Process>& process) {
     if (datastore_->deleteProcessById(process->id())) {
         if (active_process_ && process->id() == active_process_->id()) {
             active_process_ = nullptr;
@@ -73,7 +77,7 @@ bool ServerDirectory::removeProcess(std::shared_ptr<Process>& process) {
     return false;
 }
 
-bool ServerDirectory::makePrimaryProcess(std::shared_ptr<Process> process) {
+bool ServerDirectory::makePrimaryProcess(shared_ptr<Process> process) {
     active_cluster_->primary_id(process->id());
     return true;
 }
@@ -84,3 +88,12 @@ void ServerDirectory::pulse() {
 
     active_cluster_ = datastore_->findClusterById(active_cluster_->id());
 }
+
+ClusterMap ServerDirectory::getClusterSnapshot() const {
+    return datastore_->getClusterMap();
+}
+
+ProcessMap ServerDirectory::getProcessSnapshot(shared_ptr<Cluster> cluster) const {
+    return datastore_->getProcessMap(cluster->id());
+}
+

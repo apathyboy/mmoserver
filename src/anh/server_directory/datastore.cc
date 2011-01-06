@@ -236,6 +236,62 @@ bool Datastore::deleteProcessById(uint32_t id) const {
     return statement->executeUpdate() > 0;
 }
 
+std::map<uint32_t, std::shared_ptr<Cluster>> Datastore::getClusterMap() const {
+    std::unique_ptr<sql::Statement> statement(connection_->createStatement());
+    std::unique_ptr<sql::ResultSet> result(statement->executeQuery(
+        "SELECT * FROM cluster ORDER BY cluster.name"));
+
+    // Loop through the results and create a map entry for each.
+    std::map<uint32_t, std::shared_ptr<Cluster>> map;
+    uint32_t id = 0;
+
+    while (result->next()) {
+        id = result->getUInt("id");
+
+        map.insert(std::make_pair(id, make_shared<Cluster>(
+            id,
+            result->getUInt("primary_id"),
+            result->getString("name"),
+            static_cast<Cluster::StatusType>(result->getInt("status")),
+            result->getString("created_at"),
+            result->getString("updated_at"))));
+    }
+
+    return map;
+}
+
+std::map<uint32_t, std::shared_ptr<Process>> Datastore::getProcessMap(uint32_t cluster_id) const {
+    std::unique_ptr<sql::PreparedStatement> statement(connection_->prepareStatement(
+        "SELECT id, cluster_id, type, version, address, tcp_port, udp_port, status, TIMESTAMP(last_pulse) as last_pulse_timestamp "
+        "FROM process WHERE cluster_id = ? ORDER BY process.type"));
+
+    statement->setUInt(1, cluster_id);
+    
+    std::unique_ptr<sql::ResultSet> result(statement->executeQuery());
+
+    // Loop through the results and create a map entry for each.
+    std::map<uint32_t, std::shared_ptr<Process>> map;
+    uint32_t id = 0;
+
+    while (result->next()) {
+        id = result->getUInt("id");
+
+        map.insert(std::make_pair(id, make_shared<Process>(
+            id,
+            result->getUInt("cluster_id"),
+            result->getString("name"),
+            result->getString("type"),
+            result->getString("version"),
+            result->getString("address"),
+            result->getUInt("tcp_port"),
+            result->getUInt("udp_port"),
+            static_cast<Process::StatusType>(result->getInt("status")),
+            result->getString("last_pulse_timestamp"))));
+    }
+
+    return map;
+}
+
 std::string Datastore::prepareTimestampForStorage_(const std::string& timestamp) const {    
     std::stringstream ss;
     

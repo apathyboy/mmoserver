@@ -20,6 +20,8 @@
 #ifndef ANH_SERVER_DIRECTORY_SERVER_DIRECTORY_H_
 #define ANH_SERVER_DIRECTORY_SERVER_DIRECTORY_H_
 
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -44,11 +46,15 @@ public:
         : std::runtime_error(message) {}
 };
 
+typedef std::map<uint32_t, std::shared_ptr<Cluster>> ClusterMap;
+typedef std::map<uint32_t, std::shared_ptr<Process>> ProcessMap;
+
 /*! \brief ServerDirectory is a utility class intended to assist processes in
 * registering themselves and participating in a clustered environment.
 */
 class ServerDirectory {
 public:
+    explicit ServerDirectory(std::shared_ptr<DatastoreInterface> datastore);
     ServerDirectory(std::shared_ptr<DatastoreInterface> datastore, const std::string& cluster_name, bool create_cluster = false);
 
     std::shared_ptr<Cluster> cluster() const;
@@ -60,6 +66,9 @@ public:
     bool makePrimaryProcess(std::shared_ptr<Process> process);
 
     void pulse();
+
+    ClusterMap getClusterSnapshot() const;
+    ProcessMap getProcessSnapshot(std::shared_ptr<Cluster> cluster) const;
 
 private:
     std::shared_ptr<DatastoreInterface> datastore_;

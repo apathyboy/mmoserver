@@ -20,6 +20,8 @@
 #ifndef ANH_SERVER_DIRECTORY_DATASTORE_H_
 #define ANH_SERVER_DIRECTORY_DATASTORE_H_
 
+#include <cstdint>
+#include <map>
 #include <memory>
 
 #include <boost/noncopyable.hpp>
@@ -49,6 +51,9 @@ public:
     virtual std::shared_ptr<Cluster> findClusterById(uint32_t id) const = 0;
 
     virtual bool deleteProcessById(uint32_t id) const = 0;
+
+    virtual std::map<uint32_t, std::shared_ptr<Cluster>> getClusterMap() const = 0;
+    virtual std::map<uint32_t, std::shared_ptr<Process>> getProcessMap(uint32_t cluster_id) const = 0;
 };
 
 class Datastore : public DatastoreInterface , boost::noncopyable {
@@ -66,7 +71,9 @@ public:
     std::shared_ptr<Process> findProcessById(uint32_t id) const;
     bool deleteProcessById(uint32_t id) const;
     void saveProcess(std::shared_ptr<Process> process) const;
-
+    
+    std::map<uint32_t, std::shared_ptr<Cluster>> getClusterMap() const;
+    std::map<uint32_t, std::shared_ptr<Process>> getProcessMap(uint32_t cluster_id) const;
 private:
     Datastore();
 
