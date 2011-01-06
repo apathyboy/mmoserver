@@ -25,6 +25,10 @@
 #include "anh/server_directory/cluster.h"
 #include "anh/server_directory/process.h"
 
+namespace sql {
+    class Connection; 
+}
+
 namespace anh {
 namespace server_directory {
 
@@ -43,6 +47,27 @@ public:
     virtual std::shared_ptr<Cluster> findClusterById(uint32_t id) const = 0;
 
     virtual bool deleteProcessById(uint32_t id) const = 0;
+};
+
+class Datastore : public DatastoreInterface {
+public:
+    explicit Datastore(std::shared_ptr<sql::Connection> connection);
+    ~Datastore();
+    
+    std::shared_ptr<Cluster> findClusterByName(const std::string& name) const;
+    std::shared_ptr<Cluster> createCluster(const std::string& name) const;
+    std::shared_ptr<Process> createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port) const;
+
+    std::string getClusterTimestamp(std::shared_ptr<Cluster> cluster) const;
+
+    void saveProcess(std::shared_ptr<Process> process) const;
+
+    std::shared_ptr<Cluster> findClusterById(uint32_t id) const;
+
+    bool deleteProcessById(uint32_t id) const;
+
+private:
+    std::shared_ptr<sql::Connection> connection_;
 };
 
 }  // namespace server_directory
