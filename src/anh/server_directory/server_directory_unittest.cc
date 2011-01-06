@@ -62,6 +62,9 @@ public:
     MOCK_CONST_METHOD1(createCluster, shared_ptr<Cluster>(const std::string& name));
     MOCK_CONST_METHOD7(createProcess, shared_ptr<Process>(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port));
     MOCK_CONST_METHOD1(getClusterTimestamp, std::string(std::shared_ptr<Cluster> cluster));
+    MOCK_CONST_METHOD1(saveProcess, void(std::shared_ptr<Process> process));
+    MOCK_CONST_METHOD1(findClusterById, shared_ptr<Cluster>(uint32_t id));
+    MOCK_CONST_METHOD1(deleteProcessById, bool(uint32_t id));
 };
 
 /// Creating and using an instance of ServerDirectory requires a valid cluster
@@ -74,9 +77,9 @@ TEST_F(ServerDirectoryTest, CreatingServerDirectoryJoinsToCluster) {
     try {
         ServerDirectory server_directory(datastore, "test_cluster");
     
-        Cluster cluster = server_directory.cluster();
+        auto cluster = server_directory.cluster();
 
-        EXPECT_EQ("test_cluster", cluster.name());
+        EXPECT_EQ("test_cluster", cluster->name());
     } catch(...) {
         FAIL() << "No exceptions should be thrown during a successful join";
     }
@@ -109,9 +112,9 @@ TEST_F(ServerDirectoryTest, CanCreateClusterWhenJoining) {
     try {
         ServerDirectory server_directory(datastore, "test_cluster", true);
         
-        Cluster cluster = server_directory.cluster();
+        auto cluster = server_directory.cluster();
 
-        EXPECT_EQ("test_cluster", cluster.name());
+        EXPECT_EQ("test_cluster", cluster->name());
     } catch(...) {
         FAIL() << "No exceptions should be thrown during a successful create/join";
     }
@@ -131,10 +134,10 @@ TEST_F(ServerDirectoryTest, RegisteringProcessMakesItActive) {
 
         EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
 
-        Process process = server_directory.process();
+        auto process = server_directory.process();
         
-        EXPECT_EQ("process_name", process.name());
-        EXPECT_EQ("test_process", process.type());
+        EXPECT_EQ("process_name", process->name());
+        EXPECT_EQ("test_process", process->type());
     } catch(...) {
         FAIL() << "No exceptions should be thrown during a successful create/join";
     }
@@ -153,17 +156,17 @@ TEST_F(ServerDirectoryTest, CanMakeActiveProcessThePrimaryClusterProcess) {
 
         EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
         
-        Cluster cluster = server_directory.cluster();
-        Process process = server_directory.process();
+        auto cluster = server_directory.cluster();
+        auto process = server_directory.process();
 
-        EXPECT_NE(cluster.primary_id(), process.id());
+        EXPECT_NE(cluster->primary_id(), process->id());
 
         EXPECT_TRUE(server_directory.makePrimaryProcess(process));
         
         cluster = server_directory.cluster();
         process = server_directory.process();
 
-        EXPECT_EQ(cluster.primary_id(), process.id());
+        EXPECT_EQ(cluster->primary_id(), process->id());
 
     } catch(...) {
         FAIL() << "No exceptions should be thrown during a successful create/join";
@@ -181,22 +184,91 @@ TEST_F(ServerDirectoryTest, PulsingUpdatesActiveProcessTimestamp) {
     EXPECT_CALL(*datastore, getClusterTimestamp(_))
         .WillOnce(Return(std::string("1970-01-01 00:01:01")));
 
+    EXPECT_CALL(*datastore, saveProcess(test_process_))
+        .Times(1);
+    
+    EXPECT_CALL(*datastore, findClusterById(test_cluster_->id()))
+        .WillOnce(Return(test_cluster_));
+
     try {
         ServerDirectory server_directory(datastore, "test_cluster");
 
         EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
         
-        Process process = server_directory.process();
-        std::string registration_time = process.last_pulse();
+        auto process = server_directory.process();
+        std::string registration_time = process->last_pulse();
         
         server_directory.pulse();
                 
         process = server_directory.process();
-        std::string pulse_time = process.last_pulse();
+        std::string pulse_time = process->last_pulse();
         
         EXPECT_NE(registration_time, pulse_time);
         EXPECT_LT(ptime(time_from_string(registration_time)),
                   ptime(time_from_string(pulse_time)));
+    } catch(...) {
+        FAIL() << "No exceptions should be thrown during a successful create/join";
+    }
+}
+
+/// When deleting a process it should be nullified
+TEST_F(ServerDirectoryTest, RemovingProcessNullifiesIt) {
+    auto datastore = make_shared<MockDatastore>();
+    EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
+        .WillOnce(Return(test_cluster_));
+
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+        .WillOnce(Return(test_process_));
+    
+    EXPECT_CALL(*datastore, deleteProcessById(1))
+        .WillOnce(Return(true));
+
+    try {
+        ServerDirectory server_directory(datastore, "test_cluster");
+
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+
+        auto process = server_directory.process();
+        
+        EXPECT_EQ("process_name", process->name());
+        EXPECT_EQ("test_process", process->type());
+
+        server_directory.removeProcess(std::move(process));
+
+        EXPECT_EQ(nullptr, process);
+
+    } catch(...) {
+        FAIL() << "No exceptions should be thrown during a successful create/join";
+    }
+}
+
+/// When deleting a process it should be nullified, if it's the active process
+/// then the instance held by ServerDirectory needs to be updated as well.
+TEST_F(ServerDirectoryTest, RemovingActiveProcessNullifiesIt) {
+    auto datastore = make_shared<MockDatastore>();
+    EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
+        .WillOnce(Return(test_cluster_));
+
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+        .WillOnce(Return(test_process_));
+
+    EXPECT_CALL(*datastore, deleteProcessById(1))
+        .WillOnce(Return(true));
+
+    try {
+        ServerDirectory server_directory(datastore, "test_cluster");
+
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+
+        auto process = server_directory.process();
+        
+        EXPECT_EQ("process_name", process->name());
+        EXPECT_EQ("test_process", process->type());
+
+        server_directory.removeProcess(process);
+
+        EXPECT_EQ(nullptr, server_directory.process());
+
     } catch(...) {
         FAIL() << "No exceptions should be thrown during a successful create/join";
     }

@@ -43,12 +43,12 @@ ServerDirectory::ServerDirectory(shared_ptr<DatastoreInterface> datastore, const
     }
 }
 
-Cluster ServerDirectory::cluster() const {
-    return *active_cluster_;
+shared_ptr<Cluster> ServerDirectory::cluster() const {
+    return active_cluster_;
 }
 
-Process ServerDirectory::process() const {
-    return *active_process_;
+shared_ptr<Process> ServerDirectory::process() const {
+    return active_process_;
 }
 
 bool ServerDirectory::registerProcess(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port) {
@@ -57,13 +57,30 @@ bool ServerDirectory::registerProcess(const std::string& name, const std::string
     }
 
     return false;
-}    
+}
 
-bool ServerDirectory::makePrimaryProcess(const Process& process) {
-    active_cluster_->primary_id(process.id());
+bool ServerDirectory::removeProcess(std::shared_ptr<Process>& process) {
+    if (datastore_->deleteProcessById(process->id())) {
+        if (active_process_ && process->id() == active_process_->id()) {
+            active_process_ = nullptr;
+        }
+
+        process = nullptr;
+
+        return true;
+    }
+
+    return false;
+}
+
+bool ServerDirectory::makePrimaryProcess(std::shared_ptr<Process> process) {
+    active_cluster_->primary_id(process->id());
     return true;
 }
 
 void ServerDirectory::pulse() {
     active_process_->last_pulse(datastore_->getClusterTimestamp(active_cluster_));
+    datastore_->saveProcess(active_process_);
+
+    active_cluster_ = datastore_->findClusterById(active_cluster_->id());
 }

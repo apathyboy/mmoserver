@@ -51,12 +51,13 @@ class ServerDirectory {
 public:
     ServerDirectory(std::shared_ptr<DatastoreInterface> datastore, const std::string& cluster_name, bool create_cluster = false);
 
-    Cluster cluster() const;
-    Process process() const;
+    std::shared_ptr<Cluster> cluster() const;
+    std::shared_ptr<Process> process() const;
 
     bool registerProcess(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port);
+    bool removeProcess(std::shared_ptr<Process>& process);
     
-    bool makePrimaryProcess(const Process& process);
+    bool makePrimaryProcess(std::shared_ptr<Process> process);
 
     void pulse();
 
