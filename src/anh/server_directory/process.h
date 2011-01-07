@@ -26,15 +26,7 @@
 namespace anh {
 namespace server_directory {
 
-class Process {
-public:
-    enum StatusType {
-        OFFLINE = 0,
-        LOADING = 1,
-        ONLINE = 2,
-        LOCKED = 3
-    };
-    
+class Process {    
 public:
     /*! This overloaded constructor is used when creating an instance from
     * the data store.
@@ -57,8 +49,7 @@ public:
             const std::string& address,
             uint16_t tcp_port,
             uint16_t udp_port,
-            StatusType status,
-            const std::string& last_pulse);    
+            uint16_t ping_port);    
 
     /// Destructor
     ~Process();    
@@ -123,24 +114,32 @@ public:
     */
     uint16_t udp_port() const;    
     
+    /*! Returns the ping port, default to 0 if not used.
+    *
+    * \returns Returns the udp port, default to 0 if not used.
+    */
+    uint16_t ping_port() const;    
+    
     /*! Returns the current status of the process.
     *
-    * \returns Returns the current status of the process.
+    * \returns Returns -1 if the process is not operational otherwise it returns
+    *   the number of connected clients.
     */
-    StatusType status() const;    
+    int32_t status() const;    
+    void status(int32_t new_status);
     
     /*! Returns the last time the process synced with the data store.
     *
     * \returns Returns the last time the process synced with the data store.
     */
     const std::string& last_pulse() const;
+    void last_pulse(std::string last_pulse);
     
 private:
     friend class ServerDirectory;
 
     Process();
 
-    void last_pulse(std::string last_pulse);
     
     uint32_t id_;
     uint32_t cluster_id_;
@@ -150,7 +149,8 @@ private:
     std::string address_;
     uint16_t tcp_port_;
     uint16_t udp_port_;
-    StatusType status_;
+    uint16_t ping_port_;
+    int32_t status_;
     std::string last_pulse_;
 };
 

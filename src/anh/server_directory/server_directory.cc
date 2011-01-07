@@ -57,8 +57,8 @@ shared_ptr<Process> ServerDirectory::process() const {
     return active_process_;
 }
 
-bool ServerDirectory::registerProcess(const string& name, const string& process_type, const string& version, const string& address, uint16_t tcp_port, uint16_t udp_port) {
-    if (active_process_ = datastore_->createProcess(active_cluster_, name, process_type, version, address, tcp_port, udp_port)) {
+bool ServerDirectory::registerProcess(const string& name, const string& process_type, const string& version, const string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping_port) {
+    if (active_process_ = datastore_->createProcess(active_cluster_, name, process_type, version, address, tcp_port, udp_port, ping_port)) {
         return true;
     }
 
@@ -77,6 +77,11 @@ bool ServerDirectory::removeProcess(shared_ptr<Process>& process) {
     }
 
     return false;
+}
+
+void ServerDirectory::updateProcessStatus(shared_ptr<Process>& process, int32_t new_status) {
+    process->status(new_status);
+    datastore_->saveProcess(process);
 }
 
 bool ServerDirectory::makePrimaryProcess(shared_ptr<Process> process) {

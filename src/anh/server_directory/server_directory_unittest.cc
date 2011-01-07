@@ -48,7 +48,7 @@ protected:
     }
     
     Process getTestProcess() {
-        Process process(1, 1, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, Process::OFFLINE, "1970-01-01 00:00:01");
+        Process process(1, 1, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0);
         return process;
     }
 
@@ -60,7 +60,7 @@ class MockDatastore : public DatastoreInterface {
 public:
     MOCK_CONST_METHOD1(findClusterByName, shared_ptr<Cluster>(const std::string& name));
     MOCK_CONST_METHOD1(createCluster, shared_ptr<Cluster>(const std::string& name));
-    MOCK_CONST_METHOD7(createProcess, shared_ptr<Process>(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port));
+    MOCK_CONST_METHOD8(createProcess, shared_ptr<Process>(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping_port));
     MOCK_CONST_METHOD1(getClusterTimestamp, std::string(std::shared_ptr<Cluster> cluster));
     MOCK_CONST_METHOD1(saveProcess, void(std::shared_ptr<Process> process));
     MOCK_CONST_METHOD1(findClusterById, shared_ptr<Cluster>(uint32_t id));
@@ -129,13 +129,13 @@ TEST_F(ServerDirectoryTest, RegisteringProcessMakesItActive) {
     EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
         .WillOnce(Return(test_cluster_));
 
-    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0))
         .WillOnce(Return(test_process_));
 
     try {
         ServerDirectory server_directory(datastore, "test_cluster");
 
-        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0));
 
         auto process = server_directory.process();
         
@@ -151,13 +151,13 @@ TEST_F(ServerDirectoryTest, CanMakeActiveProcessThePrimaryClusterProcess) {
     EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
         .WillOnce(Return(test_cluster_));
 
-    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0))
         .WillOnce(Return(test_process_));
 
     try {
         ServerDirectory server_directory(datastore, "test_cluster");
 
-        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0));
         
         auto cluster = server_directory.cluster();
         auto process = server_directory.process();
@@ -181,7 +181,7 @@ TEST_F(ServerDirectoryTest, PulsingUpdatesActiveProcessTimestamp) {
     EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
         .WillOnce(Return(test_cluster_));
 
-    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0))
         .WillOnce(Return(test_process_));
 
     EXPECT_CALL(*datastore, getClusterTimestamp(_))
@@ -196,7 +196,7 @@ TEST_F(ServerDirectoryTest, PulsingUpdatesActiveProcessTimestamp) {
     try {
         ServerDirectory server_directory(datastore, "test_cluster");
 
-        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0));
         
         auto process = server_directory.process();
         std::string registration_time = process->last_pulse();
@@ -209,8 +209,8 @@ TEST_F(ServerDirectoryTest, PulsingUpdatesActiveProcessTimestamp) {
         EXPECT_NE(registration_time, pulse_time);
         EXPECT_LT(ptime(time_from_string(registration_time)),
                   ptime(time_from_string(pulse_time)));
-    } catch(...) {
-        FAIL() << "No exceptions should be thrown during a successful create/join";
+    } catch(const std::exception& e) {
+        FAIL() << "No exceptions should be thrown during a successful create/join" << e.what();
     }
 }
 
@@ -220,7 +220,7 @@ TEST_F(ServerDirectoryTest, RemovingProcessNullifiesIt) {
     EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
         .WillOnce(Return(test_cluster_));
 
-    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0))
         .WillOnce(Return(test_process_));
     
     EXPECT_CALL(*datastore, deleteProcessById(1))
@@ -229,7 +229,7 @@ TEST_F(ServerDirectoryTest, RemovingProcessNullifiesIt) {
     try {
         ServerDirectory server_directory(datastore, "test_cluster");
 
-        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0));
 
         auto process = server_directory.process();
         
@@ -252,7 +252,7 @@ TEST_F(ServerDirectoryTest, RemovingActiveProcessNullifiesIt) {
     EXPECT_CALL(*datastore, findClusterByName("test_cluster"))
         .WillOnce(Return(test_cluster_));
 
-    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000))
+    EXPECT_CALL(*datastore, createProcess(_, "process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0))
         .WillOnce(Return(test_process_));
 
     EXPECT_CALL(*datastore, deleteProcessById(1))
@@ -261,7 +261,7 @@ TEST_F(ServerDirectoryTest, RemovingActiveProcessNullifiesIt) {
     try {
         ServerDirectory server_directory(datastore, "test_cluster");
 
-        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000));
+        EXPECT_TRUE(server_directory.registerProcess("process_name", "test_process", "1.0.0", "127.0.0.1", 0, 40000, 0));
 
         auto process = server_directory.process();
         

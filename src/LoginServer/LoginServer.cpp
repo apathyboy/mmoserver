@@ -88,7 +88,7 @@ LoginServer::LoginServer(int argc, char* argv[])
         make_shared<anh::server_directory::Datastore>(database_manager_->getConnection("global")),
         cluster_name);
 
-    if(!server_directory_->registerProcess("login_service", "login", "v1.0.0", configuration_variables_map_["BindAddress"].as<std::string>(), 0, configuration_variables_map_["BindPort"].as<uint16_t>())) {
+    if(!server_directory_->registerProcess("login_service", "login", "v1.0.0", configuration_variables_map_["BindAddress"].as<std::string>(), 0, configuration_variables_map_["BindPort"].as<uint16_t>(), 0)) {
         throw std::exception("Unable to register login process");
     }
 
@@ -120,7 +120,7 @@ LoginServer::LoginServer(int argc, char* argv[])
 
     mDatabase->executeProcedureAsync(0, 0, "CALL %s.sp_ServerStatusUpdate('login', NULL, NULL, NULL);",mDatabase->galaxy()); // SQL - Update Server Start ID
     mDatabase->executeProcedureAsync(0, 0, "CALL %s.sp_ServerStatusUpdate('login', %u, NULL, NULL);",mDatabase->galaxy(), 1); // SQL - Update Server Status
-    
+        
     // In case of a crash, we need to cleanup the DB a little.
     mDatabase->destroyResult(mDatabase->executeSynchSql("UPDATE %s.account SET account_authenticated = 0 WHERE account_authenticated = 1;",mDatabase->galaxy()));
     
@@ -138,6 +138,7 @@ LoginServer::LoginServer(int argc, char* argv[])
 
     // We're done initializing.
     mDatabase->executeProcedureAsync(0, 0, "CALL %s.sp_ServerStatusUpdate('login', %u, '%s', %u);",mDatabase->galaxy(), 2, mService->getLocalAddress(), mService->getLocalPort()); // SQL - Update Server Details
+    server_directory_->updateProcessStatus(server_directory_->process(), 0);
 
     LOG(WARNING) << "Login Server startup complete";
     //gLogger->printLogo();
@@ -151,6 +152,9 @@ LoginServer::LoginServer(int argc, char* argv[])
 //======================================================================================================================
 LoginServer::~LoginServer(void)
 {
+    // server is shutting down so remove it from the cluster process list
+    server_directory_->removeProcess(server_directory_->process());
+
     mDatabase->executeProcedureAsync(0, 0, "CALL %s.sp_ServerStatusUpdate('login', %u, NULL, NULL);",mDatabase->galaxy(), 2); // SQL - Update server status
     
     LOG(WARNING) << "LoginServer shutting down...";

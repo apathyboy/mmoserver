@@ -43,7 +43,7 @@ public:
 
     virtual std::shared_ptr<Cluster> findClusterByName(const std::string& name) const = 0;
     virtual std::shared_ptr<Cluster> createCluster(const std::string& name) const = 0;
-    virtual std::shared_ptr<Process> createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port) const = 0;
+    virtual std::shared_ptr<Process> createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping_port) const = 0;
 
     virtual std::string getClusterTimestamp(std::shared_ptr<Cluster> cluster) const = 0;
 
@@ -69,7 +69,7 @@ public:
     std::shared_ptr<Cluster> findClusterById(uint32_t id) const;
     std::shared_ptr<Cluster> findClusterByName(const std::string& name) const;
     
-    std::shared_ptr<Process> createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port) const;
+    std::shared_ptr<Process> createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping_port) const;
     std::shared_ptr<Process> findProcessById(uint32_t id) const;
     bool deleteProcessById(uint32_t id) const;
     void saveProcess(std::shared_ptr<Process> process) const;

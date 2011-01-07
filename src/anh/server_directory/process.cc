@@ -29,8 +29,7 @@ Process::Process(uint32_t id,
                  const std::string& address,
                  uint16_t tcp_port,
                  uint16_t udp_port,
-                 StatusType status,
-                 const std::string& last_pulse)
+                 uint16_t ping_port)
     : id_(id)
     , cluster_id_(cluster_id)
     , name_(name)
@@ -39,8 +38,9 @@ Process::Process(uint32_t id,
     , address_(address)
     , tcp_port_(tcp_port)
     , udp_port_(udp_port)
-    , status_(status)
-    , last_pulse_(last_pulse)
+    , ping_port_(ping_port)
+    , status_(-1)
+    , last_pulse_("1970-01-01 00:00:01")
 {}
 
 Process::~Process() {}
@@ -54,6 +54,7 @@ Process::Process(const Process& other) {
     address_ = other.address_;
     tcp_port_ = other.tcp_port_;
     udp_port_ = other.udp_port_;
+    ping_port_ = other.ping_port_;
     status_ = other.status_;
     last_pulse_ = other.last_pulse_;
 }
@@ -67,6 +68,7 @@ Process::Process(Process&& other) {
     address_ = std::move(other.address_);
     tcp_port_ = other.tcp_port_;
     udp_port_ = other.udp_port_;
+    ping_port_ = other.ping_port_;
     status_ = other.status_;
     last_pulse_ = std::move(other.last_pulse_);
 }
@@ -80,6 +82,7 @@ void Process::swap(Process& other) {
     std::swap(other.address_, address_);
     std::swap(other.tcp_port_, tcp_port_);
     std::swap(other.udp_port_, udp_port_);
+    std::swap(other.ping_port_, ping_port_);
     std::swap(other.status_, status_);
     std::swap(other.last_pulse_, last_pulse_);
 }
@@ -121,8 +124,16 @@ uint16_t Process::udp_port() const {
     return udp_port_;
 }
 
-Process::StatusType Process::status() const {
+uint16_t Process::ping_port() const {
+    return ping_port_;
+}
+
+int32_t Process::status() const {
     return status_;
+}
+
+void Process::status(int32_t new_status) {
+    status_ = new_status;
 }
 
 const std::string& Process::last_pulse() const {

@@ -95,7 +95,7 @@ std::shared_ptr<Cluster> Datastore::createCluster(const std::string& name) const
     return cluster;
 }
 
-std::shared_ptr<Process> Datastore::createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port) const {
+std::shared_ptr<Process> Datastore::createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping_port) const {
 
     std::unique_ptr<sql::PreparedStatement> statement(connection_->prepareStatement(
         "INSERT INTO process (cluster_id, "
@@ -105,11 +105,12 @@ std::shared_ptr<Process> Datastore::createProcess(std::shared_ptr<Cluster> clust
                              "address, "
                              "tcp_port, "
                              "udp_port, "
+                             "ping_Port, "
                              "status, "
                              "last_pulse, "
                              "created_at, "
                              "updated_at) "
-        "VALUES(?, ?, ?, ?, INET_ATON(?), ?, ?, 0, NOW(), NOW(), NOW())"));
+        "VALUES(?, ?, ?, ?, INET_ATON(?), ?, ?, ?, ?, NOW(), NOW(), NOW())"));
 
     uint32_t cluster_id = 0;
     if (cluster) {
@@ -123,13 +124,15 @@ std::shared_ptr<Process> Datastore::createProcess(std::shared_ptr<Cluster> clust
     statement->setString(5, address);
     statement->setUInt(6, static_cast<uint32_t>(tcp_port));
     statement->setUInt(7, static_cast<uint32_t>(udp_port));
+    statement->setUInt(8, static_cast<uint32_t>(ping_port));
+    statement->setUInt(9, static_cast<int32_t>(-1));
     
     if (! (statement->executeUpdate() > 0)) {
         return nullptr;
     }
     
     statement.reset(connection_->prepareStatement(
-        "SELECT id, cluster_id, name, type, version, INET_NTOA(address) as address_string, tcp_port, udp_port, status, CONVERT(TIMESTAMP(last_pulse), CHAR) as last_pulse_timestamp "
+        "SELECT id, cluster_id, name, type, version, INET_NTOA(address) as address_string, tcp_port, udp_port, ping_port, status, CONVERT(TIMESTAMP(last_pulse), CHAR) as last_pulse_timestamp "
         "FROM process WHERE id = LAST_INSERT_ID()"));
     std::unique_ptr<sql::ResultSet> result(statement->executeQuery());
     
@@ -146,9 +149,11 @@ std::shared_ptr<Process> Datastore::createProcess(std::shared_ptr<Cluster> clust
         result->getString("address_string"),
         result->getUInt("tcp_port"),
         result->getUInt("udp_port"),
-        static_cast<Process::StatusType>(result->getInt("status")),
-        result->getString("last_pulse_timestamp")
+        result->getUInt("ping_port")
         );
+    
+    proc->status(result->getInt("status"));
+    proc->last_pulse(result->getString("last_pulse_timestamp"));
 
     return proc;
 }
@@ -165,14 +170,15 @@ std::string Datastore::getClusterTimestamp(std::shared_ptr<Cluster> cluster) con
 
 void Datastore::saveProcess(std::shared_ptr<Process> process) const {
     std::unique_ptr<sql::PreparedStatement> statement(connection_->prepareStatement(
-        "UPDATE process SET address = INET_ATON(?), tcp_port = ?, udp_port = ?, status = ?, last_pulse = ? WHERE id = ?"));
+        "UPDATE process SET address = INET_ATON(?), tcp_port = ?, udp_port = ?, ping_port = ?, status = ?, last_pulse = ? WHERE id = ?"));
     
     statement->setString(1, process->address());
     statement->setUInt(2, process->tcp_port());
     statement->setUInt(3, process->udp_port());
-    statement->setInt(4, process->status());
-    statement->setString(5, prepareTimestampForStorage(process->last_pulse()));
-    statement->setUInt(6, process->id());
+    statement->setUInt(4, process->ping_port());
+    statement->setInt(5, process->status());
+    statement->setString(6, prepareTimestampForStorage(process->last_pulse()));
+    statement->setUInt(7, process->id());
     statement->executeUpdate();
 }
 
@@ -224,9 +230,11 @@ std::shared_ptr<Process> Datastore::findProcessById(uint32_t id) const {
         result->getString("address_string"),
         result->getUInt("tcp_port"),
         result->getUInt("udp_port"),
-        static_cast<Process::StatusType>(result->getInt("status")),
-        result->getString("last_pulse_timestamp")
+        result->getUInt("ping_port")
         );
+
+    proc->status(result->getInt("status"));
+    proc->last_pulse(result->getString("last_pulse_timestamp"));
 
     return proc;
 }
@@ -281,7 +289,7 @@ std::map<uint32_t, std::shared_ptr<Process>> Datastore::getProcessMap(uint32_t c
     while (result->next()) {
         id = result->getUInt("id");
 
-        map.insert(std::make_pair(id, make_shared<Process>(
+        auto proc = make_shared<Process>(
             id,
             result->getUInt("cluster_id"),
             result->getString("name"),
@@ -290,8 +298,11 @@ std::map<uint32_t, std::shared_ptr<Process>> Datastore::getProcessMap(uint32_t c
             result->getString("address"),
             result->getUInt("tcp_port"),
             result->getUInt("udp_port"),
-            static_cast<Process::StatusType>(result->getInt("status")),
-            result->getString("last_pulse_timestamp"))));
+            result->getUInt("ping_port"));
+        proc->status(result->getInt("status"));
+        proc->last_pulse(result->getString("last_pulse_timestamp"));
+        
+        map.insert(std::make_pair(id, proc));
     }
 
     return map;

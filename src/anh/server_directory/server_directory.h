@@ -60,8 +60,9 @@ public:
     std::shared_ptr<Cluster> cluster() const;
     std::shared_ptr<Process> process() const;
 
-    bool registerProcess(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port);
+    bool registerProcess(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping);
     bool removeProcess(std::shared_ptr<Process>& process);
+    void updateProcessStatus(std::shared_ptr<Process>& process, int32_t new_status);
     
     bool makePrimaryProcess(std::shared_ptr<Process> process);
 
