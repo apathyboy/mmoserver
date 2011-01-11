@@ -34,6 +34,10 @@
 #     MMOSERVER_DEPS 
 #         Utils
 #         Common
+#     SOURCES # disables source lookup and uses this list
+#         ${SOURCES}
+#     TEST_SOURCES # when source lookups are disabled use these tests
+#         ${TEST_SOURCES}
 #     ADDITIONAL_SOURCE_DIRS
 #         ${CMAKE_CURRENT_SOURCE_DIR}/glue_files
 #     ADDITIONAL_INCLUDE_DIRS
@@ -54,8 +58,9 @@
 INCLUDE(CMakeMacroParseArguments)
 
 FUNCTION(AddMMOServerLibrary name)
-    PARSE_ARGUMENTS(MMOSERVERLIB "MMOSERVER_DEPS;ADDITIONAL_INCLUDE_DIRS;ADDITIONAL_SOURCE_DIRS;DEBUG_LIBRARIES;OPTIMIZED_LIBRARIES" "" ${ARGN})
+    PARSE_ARGUMENTS(MMOSERVERLIB "MMOSERVER_DEPS;SOURCES;TEST_SOURCES;ADDITIONAL_INCLUDE_DIRS;ADDITIONAL_SOURCE_DIRS;DEBUG_LIBRARIES;OPTIMIZED_LIBRARIES" "" ${ARGN})
     
+    LIST(LENGTH SOURCES __source_files_list_length)
     LIST(LENGTH MMOSERVERLIB_DEBUG_LIBRARIES _debug_list_length)
     LIST(LENGTH MMOSERVERLIB_OPTIMIZED_LIBRARIES _optimized_list_length)
     LIST(LENGTH MMOSERVERLIB_MMOSERVER_DEPS _project_deps_list_length)
@@ -63,35 +68,33 @@ FUNCTION(AddMMOServerLibrary name)
     LIST(LENGTH MMOSERVERLIB_ADDITIONAL_SOURCE_DIRS _sources_list_length)
             
     # Grab all of the source files and all of the unit test files.
-    FILE(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)          
-    FILE(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)    
-    
-    SOURCE_GROUP("" FILES ${SOURCES} ${HEADERS})
-          
-    FILE(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*_unittest.cc ${CMAKE_CURRENT_SOURCE_DIR}/*_unittest.cpp)
+    IF(__source_files_list_length EQUAL 0)            
+        # load up all of the source and header files for the project
+        FILE(GLOB_RECURSE SOURCES *.cc *.cpp *.h)
+        FILE(GLOB_RECURSE TEST_SOURCES *_unittest.cc *_unittest.cpp mock_*.h)
+            
+        FOREACH(__source_file ${SOURCES})
+            STRING(REGEX REPLACE "(${CMAKE_CURRENT_SOURCE_DIR}/)((.*/)*)(.*)" "\\2" __source_dir "${__source_file}")
+            STRING(REGEX REPLACE "(${CMAKE_CURRENT_SOURCE_DIR}/${__source_dir})(.*)" "\\2" __source_filename "${__source_file}")
+            
+            STRING(REPLACE "/" "\\\\" __source_group "${__source_dir}")
+            SOURCE_GROUP("${__source_group}" FILES ${__source_file})
+        ENDFOREACH()
+    ELSE()
+        FOREACH(__source_file ${SOURCES})
+            STRING(REGEX REPLACE "(${CMAKE_CURRENT_SOURCE_DIR}/${__source_dir})(.*)" "\\2" __source_filename "${__source_file}")
         
-    IF(_sources_list_length GREATER 0)
-        FOREACH(_source_dir ${MMOSERVERLIB_ADDITIONAL_SOURCE_DIRS})
-            FILE(GLOB ADDITIONAL_SOURCES ${_source_dir}/*.cc ${_source_dir}/*.cpp)
-            FILE(GLOB ADDITIONAL_HEADERS ${_source_dir}/*.h)
-            FILE(GLOB ADDITIONAL_TEST_SOURCES ${_source_dir}/*_unittest.cc ${_source_dir}/*_unittest.cpp)
-            FILE(GLOB MOCK_HEADERS ${_source_dir}/mock_*.h)
-            
-            # convert the / to \\ in the path so the source group is created properly
-            string(REPLACE "/" "\\\\" _source_dir "${_source_dir}")
-            
-            SOURCE_GROUP(${_source_dir} FILES ${ADDITIONAL_TEST_SOURCES} ${ADDITIONAL_SOURCES} ${ADDITIONAL_HEADERS})
-
-            LIST(APPEND SOURCES ${ADDITIONAL_SOURCES})
-            LIST(APPEND HEADERS ${ADDITIONAL_HEADERS})
-            LIST(APPEND TEST_SOURCES ${ADDITIONAL_TEST_SOURCES} ${MOCK_HEADERS})
+            STRING(SUBSTRING ${__source_filename} 0 5 __main_check)
+            STRING(COMPARE EQUAL "main." "${__main_check}" __is_main)
+            IF(__is_main)
+                LIST(REMOVE_ITEM SOURCES ${__source_file})
+            ENDIF()    
         ENDFOREACH()
     ENDIF()
-    
+        
     LIST(LENGTH TEST_SOURCES _tests_list_length)    
     IF(_tests_list_length GREATER 0)
         LIST(REMOVE_ITEM SOURCES ${TEST_SOURCES}) # Remove the unit tests from the sources list. 
-        LIST(REMOVE_ITEM HEADERS ${TEST_SOURCES}) # Remove the unit tests from the sources list.        
     ENDIF()
     
     IF(_includes_list_length GREATER 0)
@@ -99,7 +102,7 @@ FUNCTION(AddMMOServerLibrary name)
     ENDIF()
     
     # Create the Common library
-    ADD_LIBRARY(${name} STATIC ${SOURCES} ${HEADERS})    
+    ADD_LIBRARY(${name} STATIC ${SOURCES})    
     
     IF(_project_deps_list_length GREATER 0)
         ADD_DEPENDENCIES(${name} ${MMOSERVERLIB_MMOSERVER_DEPS})
@@ -167,7 +170,7 @@ FUNCTION(AddMMOServerLibrary name)
         GTEST_ADD_TESTS(${name}_tests "" ${TEST_SOURCES})
       
         IF(ENABLE_TEST_REPORT)
-            ADD_TEST(NAME All${name}Tests COMMAND ${name}_tests "--gtest_output=xml:${PROJECT_BINARY_DIR}/$<CONFIGURATION>/")
+            ADD_TEST(NAME all_${name}_tests COMMAND ${name}_tests "--gtest_output=xml:${PROJECT_BINARY_DIR}/$<CONFIGURATION>/")
         ENDIF()
     ENDIF()
 ENDFUNCTION()

@@ -4,8 +4,6 @@ AddMMOServerLibrary(ScriptEngine
     MMOSERVER_DEPS 
         Utils
         Common
-    ADDITIONAL_SOURCE_DIRS
-        glue_files
     ADDITIONAL_INCLUDE_DIRS
         ${LUA_INCLUDE_DIR} 
         ${NOISE_INCLUDE_DIR} 

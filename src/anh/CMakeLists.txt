@@ -1,10 +1,6 @@
 include(MMOServerLibrary)
 
 AddMMOServerLibrary(libanh
-    ADDITIONAL_SOURCE_DIRS
-        database
-        event_dispatcher
-        server_directory
     ADDITIONAL_INCLUDE_DIRS
         ${MYSQL_INCLUDE_DIR}
         ${MysqlConnectorCpp_INCLUDES}
