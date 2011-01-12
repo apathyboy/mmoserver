@@ -1,0 +1,3 @@
+include(MMOServerExecutable)
+
+AddMMOServerExecutable(login_service)

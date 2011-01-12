@@ -3,6 +3,9 @@
 add_subdirectory(anh)
 
 # executables
+
+add_subdirectory(login_service)
+
 ADD_SUBDIRECTORY(Utils)
 ADD_SUBDIRECTORY(Common)
 ADD_SUBDIRECTORY(NetworkManager)
