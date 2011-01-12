@@ -81,16 +81,16 @@ FUNCTION(AddMMOServerExecutable name)
         STRING(SUBSTRING ${__source_filename} 0 5 __main_check)
         STRING(COMPARE EQUAL "main." "${__main_check}" __is_main)
         IF(__is_main)
-            SET(MAIN_EXISTS "YES")
+            SET(MAIN_EXISTS ${__source_file})
         ENDIF()        
     ENDFOREACH()
     
-    # if a separate main file has been specified then split the project into
-    #   1) a source library of all files except main
-    #   2) optionally, a test project for the library
-    #   3) the executable project consisting of all the source files (except tests)
-    IF(MAIN_EXISTS)
-        AddMMOServerLibrary(lib${name}
+    # if unit tests have been specified break out the project into a library to make it testable
+    LIST(LENGTH TEST_SOURCES _tests_list_length)    
+    IF(_tests_list_length GREATER 0)        
+        SET(__project_library "lib${name}")
+    
+        AddMMOServerLibrary(${__project_library}
             MMOSERVER_DEPS
                 ${MMOSERVERLIB_MMOSERVER_DEPS}
             SOURCES
@@ -104,12 +104,8 @@ FUNCTION(AddMMOServerExecutable name)
             OPTIMIZED_LIBRARIES
                 ${MMOSERVERLIB_OPTIMIZED_LIBRARIES}
         )
-        
-        # remove the unit tests from the sources list
-        LIST(LENGTH TEST_SOURCES __tests_list_length)    
-        IF(__tests_list_length GREATER 0)
-            LIST(REMOVE_ITEM SOURCES ${TEST_SOURCES}) 
-        ENDIF()
+    
+        set(SOURCES ${MAIN_EXISTS})
     ENDIF()
         
     IF(_includes_list_length GREATER 0)
@@ -160,12 +156,13 @@ FUNCTION(AddMMOServerExecutable name)
         # On unix platforms put the built runtimes in the /bin directory.
         INSTALL(TARGETS ${name} RUNTIME DESTINATION bin)
     ENDIF()
-    
+        
     TARGET_LINK_LIBRARIES(${name}    
         NetworkManager
         DatabaseManager
         Common
         Utils
+        ${__project_library}
         libanh
         ${MYSQL_LIBRARIES}
         debug ${Boost_DATE_TIME_LIBRARY_DEBUG}
