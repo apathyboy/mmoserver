@@ -31,6 +31,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cstdint>
 #include <list>
 #include <boost/program_options.hpp>
+#include <anh/event_dispatcher/event_dispatcher.h>
+#include <anh/database/database_manager.h>
 
 /*! \brief Common is a catch-all library containing primarily base classes and
  * classes used for maintaining application lifetimes.
@@ -49,15 +51,15 @@ public:
 };
 
 /**
- * \breif Holds common functionality used between all servers in the cluster.
+ * \brief Holds common functionality used between all servers in the cluster.
  */
 class BaseApplication : public ApplicationInterface {
 public:
     /**
      * Initializes general configuration options used between all servers in the cluster.
      */
-    BaseApplication();
-    BaseApplication(int argc, const char* argv[]);
+    BaseApplication(event_dispatcher::IEventDispatcher& event_dispatcher, database::DatabaseManager& db_manager);
+    BaseApplication(int argc, const char* argv[], event_dispatcher::IEventDispatcher& event_dispatcher, database::DatabaseManager& db_manager);
     
     /**
      * Default Deconstructor.
@@ -68,11 +70,15 @@ public:
     void process();
     void shutdown();
 
+    boost::program_options::variables_map getConfigVarMap() { return configuration_variables_map_; }
 protected:
+    /** 
+    *   Registers to the event dispatcher event types Startup, Process and Shutdown
+    *   If any specific logic is required the app should attach a listener to these types
+    */
+    void registerEventTypes_();
 
-    virtual void onStartup() = 0;
-    virtual void onProcess() = 0;
-    virtual void onShutdown() = 0;
+    bool addDataSourcesFromOptions_();
 
     void addDefaultOptions_();
 
@@ -102,6 +108,9 @@ protected:
      * \param config_files The files to load the options from.
      */
     void loadOptions_(uint32_t argc, char* argv[], std::list<std::string> config_files);
+
+    database::DatabaseManager &db_manager_;
+    event_dispatcher::IEventDispatcher &event_dispatcher_;
 
     boost::program_options::options_description configuration_options_description_;
     boost::program_options::variables_map configuration_variables_map_;

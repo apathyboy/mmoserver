@@ -62,7 +62,14 @@ public:
 
 public:
     virtual ~IEventDispatcher();
-    
+
+    virtual bool hasListeners(const EventType& event_type) const = 0;
+    virtual bool hasRegisteredEventType(const EventType& event_type) const = 0;
+    virtual bool hasEvents() const = 0;
+
+    virtual bool registerEventType(EventType event_type) = 0;
+    virtual EventTypeSet registered_event_types() const = 0;
+
     virtual bool subscribe(const EventType& event_type, EventListener listener) = 0;
     virtual void unsubscribe(const EventType& event_type, const EventListenerType& listener_type) = 0;
     virtual void unsubscribe(const EventListenerType& listener_type) = 0;

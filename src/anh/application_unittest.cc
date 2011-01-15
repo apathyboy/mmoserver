@@ -19,69 +19,145 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <anh/application.h>
+#include <anh/database/mock_cppconn.h>
+#include <anh/database/mock_database_manager.h>
+#include <anh/event_dispatcher/mock_event_dispatcher.h>
 
-#include "anh/application.h"
-
+using namespace std;
 using namespace anh;
 using namespace testing;
+using namespace event_dispatcher;
+using namespace database;
 
 namespace {
 
 class MockApplication : public BaseApplication {
 public:
-    MOCK_METHOD0(onStartup, void());
-    MOCK_METHOD0(onProcess, void());
-    MOCK_METHOD0(onShutdown, void());
+    MockApplication(IEventDispatcher &ev, DatabaseManager &db_manager) 
+        : BaseApplication(ev, db_manager){};
     MOCK_CONST_METHOD0(hasStarted, bool());
 };
+class ApplicationTest : public testing::Test
+{
+protected:
+    virtual void SetUp();
+};
 
-/// Verifies that process cannot be called before startup.
-TEST(ApplicationTest, DiesWhenProcessCalledBeforeStartup) {
-    MockApplication app;
+/// tests that the app won't do any processing if the startup process hasn't run
+TEST_F(ApplicationTest, dieOnProcessIfNotStarted) {
+    MockDriver mock_driver;
+    DatabaseManager manager(&mock_driver);
+    NiceMock<MockEventDispatcher> mock_dispatcher;
+    MockApplication app(mock_dispatcher, manager);
+        
+    EXPECT_CALL(app, hasStarted())
+        .WillRepeatedly(Return(false));
+
+    ASSERT_DEATH(app.process(), "Must call startup before process");
+}
+/// verify the Startup event is triggered on startup
+TEST_F(ApplicationTest, startupEventTriggered) {
+    MockDriver mock_driver;
+    DatabaseManager manager(&mock_driver);
+    NiceMock<MockEventDispatcher> mock_dispatcher;
+    MockApplication app(mock_dispatcher, manager);
+
+    EXPECT_CALL(mock_dispatcher, trigger(_));
+    app.startup();
+
+    EXPECT_CALL(app, hasStarted())
+        .WillRepeatedly(Return(true));
+}
+/// verify the Startup event is not triggered if startup isn't called
+TEST_F(ApplicationTest, startupEventNotTriggered) {
+    MockDriver mock_driver;
+    DatabaseManager manager(&mock_driver);
+    NiceMock<MockEventDispatcher> mock_dispatcher;
+    MockApplication app(mock_dispatcher, manager);
 
     EXPECT_CALL(app, hasStarted())
         .WillRepeatedly(Return(false));
 
-    Expectation expect_on_startup = EXPECT_CALL(app, onStartup());
-    EXPECT_CALL(app, hasStarted())
-        .After(expect_on_startup)
-        .WillRepeatedly(Return(true));
-        
-    // start testing the app here
+    EXPECT_CALL(mock_dispatcher, trigger(_))
+        .Times(0);
+
     ASSERT_DEATH(app.process(), "Must call startup before process");
+
+    EXPECT_CALL(app, hasStarted())
+        .WillRepeatedly(Return(false));
+}
+
+/// verify the Process event triggered 
+TEST_F(ApplicationTest, processEventTriggered) {
+    MockDriver mock_driver;
+    DatabaseManager manager(&mock_driver);
+    NiceMock<MockEventDispatcher> mock_dispatcher;
+    MockApplication app(mock_dispatcher, manager);
+
+    EXPECT_CALL(app, hasStarted())
+        .WillRepeatedly(Return(false));
+
+    // once for Startup and once for Process
+    EXPECT_CALL(mock_dispatcher, trigger(_))
+        .Times(2);
 
     app.startup();
 
-    ASSERT_TRUE(app.hasStarted());
+    EXPECT_CALL(app, hasStarted())
+        .WillRepeatedly(Return(true));
 
-    // now process can be called without dying
     app.process();
 }
 
 /// Verifies that process cannot be called after shutdown.
-TEST(ApplicationTest, DiesWhenProcessCalledAfterShutdown) {
-    MockApplication app;
-    
-    EXPECT_CALL(app, hasStarted())
-        .WillRepeatedly(Return(false));
+/// also verifies no events occur after the shutdown
+TEST_F(ApplicationTest, DiesWhenProcessCalledAfterShutdown) {
+    MockDriver mock_driver;
+    DatabaseManager manager(&mock_driver);
+    NiceMock<MockEventDispatcher> mock_dispatcher;
+    MockApplication app(mock_dispatcher, manager);
 
-    Expectation expect_on_startup = EXPECT_CALL(app, onStartup());
+    Expectation expect_on_startup = EXPECT_CALL(mock_dispatcher, trigger(_));
     EXPECT_CALL(app, hasStarted())
         .After(expect_on_startup)
         .WillRepeatedly(Return(true));
-
-    Expectation expect_on_shutdown = EXPECT_CALL(app, onShutdown());
-    EXPECT_CALL(app, hasStarted())
-        .After(expect_on_shutdown)
-        .WillRepeatedly(Return(false));
-    
     // start testing the app here
     app.startup();
+    
+    EXPECT_CALL(mock_dispatcher, trigger(_));
+
     ASSERT_TRUE(app.hasStarted());
     app.process();
 
+    Expectation expect_on_shutdown = EXPECT_CALL(mock_dispatcher, trigger(_));
+    EXPECT_CALL(app, hasStarted())
+        .After(expect_on_shutdown)
+        .WillRepeatedly(Return(false));
+
     app.shutdown();
+
+    EXPECT_CALL(mock_dispatcher, trigger(_))
+        .Times(0);
+
     ASSERT_DEATH(app.process(), "Must call startup before process");
+}
+/// checks that based on configuration data we configure two data sources
+TEST_F(ApplicationTest, doesConfigureDataSource)
+{
+ /*   MockDriver mock_driver;
+    DatabaseManager manager(&mock_driver);
+    NiceMock<MockEventDispatcher> mock_dispatcher;
+    MockApplication app(mock_dispatcher, manager);
+
+    ASSERT_TRUE(manager.hasConnection(app.getConfigVarMap()["cluster.name"].as<StorageType>()));
+    ASSERT_TRUE(manager.hasConnection(app.getConfigVarMap()["galaxy.datastore.schema"].as<StorageType>()));*/
+}
+
+
+void ApplicationTest::SetUp()
+{    
+       
 }
 
 }  // namespace

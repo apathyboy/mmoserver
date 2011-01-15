@@ -31,30 +31,44 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <iostream>
 #include <fstream>
 
+using namespace std;
 using namespace anh;
+using namespace event_dispatcher;
+using namespace database;
 
-BaseApplication::BaseApplication()
-    : configuration_options_description_("Configuration Options")
+BaseApplication::BaseApplication(IEventDispatcher& event_dispatcher, DatabaseManager& db_manager)
+    : event_dispatcher_(event_dispatcher)
+    , db_manager_(db_manager)
+    , configuration_options_description_("Configuration Options")
     , argc_(0)
     , argv_(nullptr)
     , started_(false)
 {
+    registerEventTypes_();
     addDefaultOptions_();
+    addDataSourcesFromOptions_();
 }
 
-BaseApplication::BaseApplication(int argc, const char** argv)
-    : configuration_options_description_("Configuration Options")
+BaseApplication::BaseApplication(int argc, const char** argv,IEventDispatcher& event_dispatcher, DatabaseManager& db_manager)
+    : event_dispatcher_(event_dispatcher)
+    , db_manager_(db_manager)
+    , configuration_options_description_("Configuration Options")
     , argc_(argc)
     , argv_(argv)
     , started_(false)
 {
+    registerEventTypes_();
     addDefaultOptions_();
+    addDataSourcesFromOptions_();
 }
 
 BaseApplication::~BaseApplication() {}
 
 void BaseApplication::startup() {
-    onStartup();
+    // startup logic here
+    
+    auto startup_event = make_shared<SimpleEvent>("Startup");
+    event_dispatcher_.trigger(startup_event);
 }
 
 void BaseApplication::process() {
@@ -62,31 +76,41 @@ void BaseApplication::process() {
         assert(false && "Must call startup before process");
         return;
     }
+    auto process_event = make_shared<SimpleEvent>("Process");
+    event_dispatcher_.trigger(process_event);
 }
 
 void BaseApplication::shutdown() {
-    onShutdown();
+    // clean up code here before the server shuts down
+    auto shutdown_event = make_shared<SimpleEvent>("Shutdown");
+    event_dispatcher_.trigger(shutdown_event);
+}
+void BaseApplication::registerEventTypes_() {
+    // register default event types
+    event_dispatcher_.registerEventType("Startup");
+    event_dispatcher_.registerEventType("Process");
+    event_dispatcher_.registerEventType("Shutdown");
 }
 
 void BaseApplication::addDefaultOptions_() {
     configuration_options_description_.add_options()
         ("help", "Displays this help dialog.")
 
-        ("cluster.name", boost::program_options::value<std::string>(), "Name of the cluster this application is participating in")
-        ("cluster.datastore.host", boost::program_options::value<std::string>()->default_value("tcp://localhost:3306"), "Host to connect to the cluster datastore at: e.x. tcp://localhost:3306")
-        ("cluster.datastore.username", boost::program_options::value<std::string>(), "Username to connect to the cluster datastore with")
-        ("cluster.datastore.password", boost::program_options::value<std::string>(), "Password to connect to the cluster datastore with")
-        ("cluster.datastore.schema", boost::program_options::value<std::string>(), "Schema name that contains the cluster data")
+        ("cluster.name", boost::program_options::value<string>(), "Name of the cluster this application is participating in")
+        ("cluster.datastore.host", boost::program_options::value<string>()->default_value("tcp://localhost:3306"), "Host to connect to the cluster datastore at: e.x. tcp://localhost:3306")
+        ("cluster.datastore.username", boost::program_options::value<string>(), "Username to connect to the cluster datastore with")
+        ("cluster.datastore.password", boost::program_options::value<string>(), "Password to connect to the cluster datastore with")
+        ("cluster.datastore.schema", boost::program_options::value<string>(), "Schema name that contains the cluster data")
 
-        ("galaxy.datastore.host", boost::program_options::value<std::string>()->default_value("tcp://localhost:3306"), "Host to connect to the galaxy datastore at: e.x. tcp://localhost:3306")
-        ("galaxy.datastore.username", boost::program_options::value<std::string>(), "Username to connect to the galaxy datastore with")
-        ("galaxy.datastore.password", boost::program_options::value<std::string>(), "Password to connect to the galaxy datastore with")
-        ("galaxy.datastore.schema", boost::program_options::value<std::string>(), "Schema name that contains the galaxy data")
+        ("galaxy.datastore.host", boost::program_options::value<string>()->default_value("tcp://localhost:3306"), "Host to connect to the galaxy datastore at: e.x. tcp://localhost:3306")
+        ("galaxy.datastore.username", boost::program_options::value<string>(), "Username to connect to the galaxy datastore with")
+        ("galaxy.datastore.password", boost::program_options::value<string>(), "Password to connect to the galaxy datastore with")
+        ("galaxy.datastore.schema", boost::program_options::value<string>(), "Schema name that contains the galaxy data")
 
         ("optimization.min_threads", boost::program_options::value<uint16_t>()->default_value(0), "Minimum number of threads to use for concurrency operations")
         ("optimization.max_threads", boost::program_options::value<uint16_t>()->default_value(0), "Maximum number of threads to use for concurrency operations")
 
-        ("network.bind_address", boost::program_options::value<std::string>()->default_value("localhost"), "Address to listen for incoming messages on")
+        ("network.bind_address", boost::program_options::value<string>()->default_value("localhost"), "Address to listen for incoming messages on")
         ("network.bind_port", boost::program_options::value<uint16_t>(), "Port to listen for incoming messages on")
     ;
 }
@@ -99,19 +123,19 @@ void BaseApplication::loadOptions_(uint32_t argc, char* argv[]) {
     // server options and throw a runtime_error exception
     // to stop server startup.
     if(configuration_variables_map_.count("help")) {
-        std::cout << configuration_options_description_ << std::endl;
-        throw std::runtime_error("Help option flagged.");
+        cout << configuration_options_description_ << endl;
+        throw runtime_error("Help option flagged.");
     }
 }
 
-void BaseApplication::loadOptions_(std::list<std::string> config_files) {
+void BaseApplication::loadOptions_(list<string> config_files) {
     // Iterate through the configuration files
     // that are to be loaded. If a configuration file
     // is missing, throw a runtime_error.
-    std::for_each(config_files.begin(), config_files.end(), [=] (const std::string& filename) {
-        std::ifstream config_file(filename);
+    for_each(config_files.begin(), config_files.end(), [=] (const string& filename) {
+        ifstream config_file(filename);
         if(!config_file)
-            throw std::runtime_error("Could not open configuration file.");
+            throw runtime_error("Could not open configuration file.");
         else
             boost::program_options::store(boost::program_options::parse_config_file(config_file, configuration_options_description_, true), configuration_variables_map_);
     });
@@ -122,22 +146,22 @@ void BaseApplication::loadOptions_(std::list<std::string> config_files) {
     // server options and throw a runtime_error exception
     // to stop server startup.
     if(configuration_variables_map_.count("help")) {
-        std::cout << configuration_options_description_ << std::endl;
-        throw std::runtime_error("Help option flagged.");
+        cout << configuration_options_description_ << endl;
+        throw runtime_error("Help option flagged.");
     }
 }
 
-void BaseApplication::loadOptions_(uint32_t argc, char* argv[], std::list<std::string> config_files)
+void BaseApplication::loadOptions_(uint32_t argc, char* argv[], list<string> config_files)
 {
     boost::program_options::store(boost::program_options::parse_command_line(argc, argv, configuration_options_description_), configuration_variables_map_);
 
     // Iterate through the configuration files
     // that are to be loaded. If a configuration file
     // is missing, throw a runtime_error.
-    std::for_each(config_files.begin(), config_files.end(), [=] (const std::string& filename) {
-        std::ifstream config_file(filename);
+    for_each(config_files.begin(), config_files.end(), [=] (const string& filename) {
+        ifstream config_file(filename);
         if(!config_file)
-            throw std::runtime_error("Could not open configuration file.");
+            throw runtime_error("Could not open configuration file.");
         else
             boost::program_options::store(boost::program_options::parse_config_file(config_file, configuration_options_description_, true), configuration_variables_map_);
     });
@@ -148,7 +172,36 @@ void BaseApplication::loadOptions_(uint32_t argc, char* argv[], std::list<std::s
     // server options and throw a runtime_error exception
     // to stop server startup.
     if(configuration_variables_map_.count("help")) {
-        std::cout << configuration_options_description_ << std::endl;
-        throw std::runtime_error("Help option flagged.");
+        cout << configuration_options_description_ << endl;
+        throw runtime_error("Help option flagged.");
     }
+}
+bool BaseApplication::addDataSourcesFromOptions_()
+{
+    // check to see if options have been loaded properly
+    if (configuration_variables_map_.size() < 1)
+        return false;
+
+    try {
+        // register the cluster first
+        db_manager_.registerStorageType(
+        configuration_variables_map_["cluster.name"].as<StorageType>(),
+        configuration_variables_map_["cluster.datastore.schema"].as<string>(),
+        configuration_variables_map_["cluster.datastore.host"].as<string>(),
+        configuration_variables_map_["cluster.datastore.username"].as<string>(),
+        configuration_variables_map_["cluster.datastore.password"].as<string>());
+
+        // register the galaxy
+        db_manager_.registerStorageType(
+        configuration_variables_map_["galaxy.datastore.schema"].as<StorageType>(),
+        configuration_variables_map_["galaxy.datastore.schema"].as<string>(),
+        configuration_variables_map_["galaxy.datastore.host"].as<string>(),
+        configuration_variables_map_["galaxy.datastore.username"].as<string>(),
+        configuration_variables_map_["galaxy.datastore.password"].as<string>());
+
+    } catch(...) {
+        cerr << "No exceptions should be thrown during a registration with valid information";
+        return false;
+    }
+    return true;
 }
