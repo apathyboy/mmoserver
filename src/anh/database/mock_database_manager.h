@@ -30,7 +30,7 @@ class MockDatabaseManager : public DatabaseManagerInterface
 {
 public:
     MOCK_CONST_METHOD1(hasStorageType, bool(const StorageType& storage_type));
-    MOCK_CONST_METHOD5(registerStorageType, bool(const StorageType& storage_type, const std::string& schema, const std::string& host, const std::string& username, const std::string& password));
+    MOCK_METHOD5(registerStorageType, bool(const StorageType& storage_type, const std::string& schema, const std::string& host, const std::string& username, const std::string& password));
     MOCK_CONST_METHOD1(hasConnection, bool(const StorageType& storage_type));
     MOCK_METHOD1(getConnection, std::shared_ptr<sql::Connection>(const StorageType& storage_type));    
 };

@@ -58,8 +58,9 @@ public:
     /**
      * Initializes general configuration options used between all servers in the cluster.
      */
-    BaseApplication(event_dispatcher::IEventDispatcher& event_dispatcher, database::DatabaseManager& db_manager);
-    BaseApplication(int argc, const char* argv[], event_dispatcher::IEventDispatcher& event_dispatcher, database::DatabaseManager& db_manager);
+    BaseApplication(std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher, std::shared_ptr<database::DatabaseManagerInterface> db_manager);
+    BaseApplication(std::list<std::string> config_files, std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher, std::shared_ptr<database::DatabaseManagerInterface> db_manager);
+    BaseApplication(int argc, const char* argv[], std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher, std::shared_ptr<database::DatabaseManagerInterface> db_manager);
     
     /**
      * Default Deconstructor.
@@ -71,7 +72,12 @@ public:
     void shutdown();
 
     boost::program_options::variables_map getConfigVarMap() { return configuration_variables_map_; }
+    std::shared_ptr<database::DatabaseManagerInterface> database_manager() { return db_manager_; }
+    std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher() { return event_dispatcher_; }
 protected:
+
+    /// helper function to init certain objects
+    void init_();
     /** 
     *   Registers to the event dispatcher event types Startup, Process and Shutdown
     *   If any specific logic is required the app should attach a listener to these types
@@ -109,8 +115,13 @@ protected:
      */
     void loadOptions_(uint32_t argc, char* argv[], std::list<std::string> config_files);
 
-    database::DatabaseManager &db_manager_;
-    event_dispatcher::IEventDispatcher &event_dispatcher_;
+    // base events to be triggered
+    std::shared_ptr<event_dispatcher::SimpleEvent> startup_event;
+    std::shared_ptr<event_dispatcher::SimpleEvent> process_event;
+    std::shared_ptr<event_dispatcher::SimpleEvent> shutdown_event;
+
+    std::shared_ptr<database::DatabaseManagerInterface> db_manager_;
+    std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher_;
 
     boost::program_options::options_description configuration_options_description_;
     boost::program_options::variables_map configuration_variables_map_;

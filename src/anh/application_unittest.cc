@@ -16,7 +16,7 @@
  You should have received a copy of the GNU General Public License
  along with MMOServer.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#include <fstream>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <anh/application.h>
@@ -34,23 +34,27 @@ namespace {
 
 class MockApplication : public BaseApplication {
 public:
-    MockApplication(IEventDispatcher &ev, DatabaseManager &db_manager) 
-        : BaseApplication(ev, db_manager){};
+    MockApplication(shared_ptr<IEventDispatcher> event_dispatcher, shared_ptr<DatabaseManagerInterface> db_manager) 
+        : BaseApplication(event_dispatcher, db_manager){};
+     MockApplication(list<string> config_files,shared_ptr<IEventDispatcher> event_dispatcher, shared_ptr<DatabaseManagerInterface> db_manager) 
+        : BaseApplication(config_files, event_dispatcher, db_manager){};
     MOCK_CONST_METHOD0(hasStarted, bool());
 };
+
 class ApplicationTest : public testing::Test
 {
+public:
+    shared_ptr<MockDatabaseManager> manager;
+    shared_ptr<NiceMock<MockEventDispatcher>> mock_dispatcher;    
 protected:
     virtual void SetUp();
+    virtual void TearDown();
 };
 
 /// tests that the app won't do any processing if the startup process hasn't run
 TEST_F(ApplicationTest, dieOnProcessIfNotStarted) {
-    MockDriver mock_driver;
-    DatabaseManager manager(&mock_driver);
-    NiceMock<MockEventDispatcher> mock_dispatcher;
     MockApplication app(mock_dispatcher, manager);
-        
+
     EXPECT_CALL(app, hasStarted())
         .WillRepeatedly(Return(false));
 
@@ -58,12 +62,9 @@ TEST_F(ApplicationTest, dieOnProcessIfNotStarted) {
 }
 /// verify the Startup event is triggered on startup
 TEST_F(ApplicationTest, startupEventTriggered) {
-    MockDriver mock_driver;
-    DatabaseManager manager(&mock_driver);
-    NiceMock<MockEventDispatcher> mock_dispatcher;
     MockApplication app(mock_dispatcher, manager);
 
-    EXPECT_CALL(mock_dispatcher, trigger(_));
+    EXPECT_CALL(*mock_dispatcher, trigger(_));
     app.startup();
 
     EXPECT_CALL(app, hasStarted())
@@ -71,15 +72,12 @@ TEST_F(ApplicationTest, startupEventTriggered) {
 }
 /// verify the Startup event is not triggered if startup isn't called
 TEST_F(ApplicationTest, startupEventNotTriggered) {
-    MockDriver mock_driver;
-    DatabaseManager manager(&mock_driver);
-    NiceMock<MockEventDispatcher> mock_dispatcher;
     MockApplication app(mock_dispatcher, manager);
 
     EXPECT_CALL(app, hasStarted())
         .WillRepeatedly(Return(false));
 
-    EXPECT_CALL(mock_dispatcher, trigger(_))
+    EXPECT_CALL(*mock_dispatcher, trigger(_))
         .Times(0);
 
     ASSERT_DEATH(app.process(), "Must call startup before process");
@@ -90,16 +88,13 @@ TEST_F(ApplicationTest, startupEventNotTriggered) {
 
 /// verify the Process event triggered 
 TEST_F(ApplicationTest, processEventTriggered) {
-    MockDriver mock_driver;
-    DatabaseManager manager(&mock_driver);
-    NiceMock<MockEventDispatcher> mock_dispatcher;
     MockApplication app(mock_dispatcher, manager);
 
     EXPECT_CALL(app, hasStarted())
         .WillRepeatedly(Return(false));
 
     // once for Startup and once for Process
-    EXPECT_CALL(mock_dispatcher, trigger(_))
+    EXPECT_CALL(*mock_dispatcher, trigger(_))
         .Times(2);
 
     app.startup();
@@ -113,51 +108,97 @@ TEST_F(ApplicationTest, processEventTriggered) {
 /// Verifies that process cannot be called after shutdown.
 /// also verifies no events occur after the shutdown
 TEST_F(ApplicationTest, DiesWhenProcessCalledAfterShutdown) {
-    MockDriver mock_driver;
-    DatabaseManager manager(&mock_driver);
-    NiceMock<MockEventDispatcher> mock_dispatcher;
     MockApplication app(mock_dispatcher, manager);
 
-    Expectation expect_on_startup = EXPECT_CALL(mock_dispatcher, trigger(_));
+    Expectation expect_on_startup = EXPECT_CALL(*mock_dispatcher, trigger(_));
     EXPECT_CALL(app, hasStarted())
         .After(expect_on_startup)
         .WillRepeatedly(Return(true));
     // start testing the app here
     app.startup();
     
-    EXPECT_CALL(mock_dispatcher, trigger(_));
+    EXPECT_CALL(*mock_dispatcher, trigger(_));
 
     ASSERT_TRUE(app.hasStarted());
     app.process();
 
-    Expectation expect_on_shutdown = EXPECT_CALL(mock_dispatcher, trigger(_));
+    Expectation expect_on_shutdown = EXPECT_CALL(*mock_dispatcher, trigger(_));
     EXPECT_CALL(app, hasStarted())
         .After(expect_on_shutdown)
         .WillRepeatedly(Return(false));
 
     app.shutdown();
 
-    EXPECT_CALL(mock_dispatcher, trigger(_))
+    EXPECT_CALL(*mock_dispatcher, trigger(_))
         .Times(0);
 
     ASSERT_DEATH(app.process(), "Must call startup before process");
 }
-/// checks that based on configuration data we configure two data sources
-TEST_F(ApplicationTest, doesConfigureDataSource)
+/// BASE CONFIGURATION TESTS
+
+/// checks based on a test cfg file we are able to load and register two storage types
+TEST_F(ApplicationTest, doesLoadConfigurationFile)
 {
- /*   MockDriver mock_driver;
-    DatabaseManager manager(&mock_driver);
-    NiceMock<MockEventDispatcher> mock_dispatcher;
-    MockApplication app(mock_dispatcher, manager);
+    list<string> config_files;
+	config_files.push_back("general.cfg");
+    
+    EXPECT_CALL(*manager, registerStorageType(_,"swganh_static","localhost","root", "swganh"));
+    EXPECT_CALL(*manager, registerStorageType(_,"swganh","localhost","root", "swganh"));
 
-    ASSERT_TRUE(manager.hasConnection(app.getConfigVarMap()["cluster.name"].as<StorageType>()));
-    ASSERT_TRUE(manager.hasConnection(app.getConfigVarMap()["galaxy.datastore.schema"].as<StorageType>()));*/
+    EXPECT_NO_THROW(
+        MockApplication app(config_files,mock_dispatcher, manager);
+    );
 }
+TEST_F(ApplicationTest, cantLoadConfigFile)
+{
+    list<string> config_files;
+	config_files.push_back("notfound.cfg");
 
+    // expectation is an exception is thrown as file not found
+    EXPECT_ANY_THROW(
+        MockApplication app(config_files,mock_dispatcher, manager);    
+    ); 
+}
+/// checks based on a test cfg file we are able to load and register two storage types
+TEST_F(ApplicationTest, foundConfigNoValidValues)
+{
+    list<string> config_files;
+	config_files.push_back("invalid_data.cfg");
+    
+    EXPECT_ANY_THROW(
+        MockApplication app(config_files,mock_dispatcher, manager);
+    );
+}
 
 void ApplicationTest::SetUp()
 {    
-       
-}
+    ofstream of("general.cfg");
+    of << "# Cluster Configuration " << endl;
+    of << "cluster.name = naritus " << endl;
+    of << "cluster.datastore.name = global "<< endl;
+    of << "cluster.datastore.host = localhost "<< endl;
+    of << "cluster.datastore.username = root " << endl;
+    of << "cluster.datastore.password = swganh " << endl;
+    of << "cluster.datastore.schema = swganh_static " << endl;
+    of << "# Galaxy Configuration "<< endl;
+    of << "galaxy.datastore.name = galaxy " << endl;
+    of << "galaxy.datastore.host = localhost " << endl;
+    of << "galaxy.datastore.username = root " << endl;
+    of << "galaxy.datastore.password = swganh " << endl;
+    of << "galaxy.datastore.schema = swganh " << endl;
+    of.flush();
+    of.close();
+    of.open("invalid_data.cfg");
+    of << "nothing to see here" << endl;
+    of.close();
 
+    manager = make_shared<MockDatabaseManager>();
+    mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
+
+}
+void ApplicationTest::TearDown()
+{
+    remove("general.cfg");
+    remove("invalid_data.cfg");
+}
 }  // namespace
