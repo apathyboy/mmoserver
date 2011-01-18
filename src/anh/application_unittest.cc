@@ -22,28 +22,32 @@
 #include <anh/application.h>
 #include <anh/database/mock_cppconn.h>
 #include <anh/database/mock_database_manager.h>
+#include <anh/scripting/mock_scripting_manager.h>
 #include <anh/event_dispatcher/mock_event_dispatcher.h>
+#include <anh/scripting/scripting_manager.h>
 
 using namespace std;
 using namespace anh;
 using namespace testing;
 using namespace event_dispatcher;
 using namespace database;
+using namespace scripting;
 
 namespace {
 
 class MockApplication : public BaseApplication {
 public:
-    MockApplication(shared_ptr<IEventDispatcher> event_dispatcher, shared_ptr<DatabaseManagerInterface> db_manager) 
-        : BaseApplication(event_dispatcher, db_manager){};
-     MockApplication(list<string> config_files,shared_ptr<IEventDispatcher> event_dispatcher, shared_ptr<DatabaseManagerInterface> db_manager) 
-        : BaseApplication(config_files, event_dispatcher, db_manager){};
+    MockApplication(list<string> config_files, shared_ptr<IEventDispatcher> event_dispatcher
+    , shared_ptr<DatabaseManagerInterface> db_manager, shared_ptr<ScriptingManagerInterface> scripting_manager)
+    : BaseApplication(config_files, event_dispatcher, db_manager, scripting_manager){};
     MOCK_CONST_METHOD0(hasStarted, bool());
 };
 
 class ApplicationTest : public testing::Test
 {
 public:
+    list<string> config;
+    shared_ptr<MockScriptingManager> scripter;
     shared_ptr<MockDatabaseManager> manager;
     shared_ptr<NiceMock<MockEventDispatcher>> mock_dispatcher;    
 protected:
@@ -53,7 +57,7 @@ protected:
 
 /// tests that the app won't do any processing if the startup process hasn't run
 TEST_F(ApplicationTest, dieOnProcessIfNotStarted) {
-    MockApplication app(mock_dispatcher, manager);
+    MockApplication app(config ,mock_dispatcher, manager, scripter);
 
     EXPECT_CALL(app, hasStarted())
         .WillRepeatedly(Return(false));
@@ -62,7 +66,7 @@ TEST_F(ApplicationTest, dieOnProcessIfNotStarted) {
 }
 /// verify the Startup event is triggered on startup
 TEST_F(ApplicationTest, startupEventTriggered) {
-    MockApplication app(mock_dispatcher, manager);
+    MockApplication app(config ,mock_dispatcher, manager, scripter);
 
     EXPECT_CALL(*mock_dispatcher, trigger(_));
     app.startup();
@@ -72,7 +76,7 @@ TEST_F(ApplicationTest, startupEventTriggered) {
 }
 /// verify the Startup event is not triggered if startup isn't called
 TEST_F(ApplicationTest, startupEventNotTriggered) {
-    MockApplication app(mock_dispatcher, manager);
+    MockApplication app(config ,mock_dispatcher, manager, scripter);
 
     EXPECT_CALL(app, hasStarted())
         .WillRepeatedly(Return(false));
@@ -88,7 +92,7 @@ TEST_F(ApplicationTest, startupEventNotTriggered) {
 
 /// verify the Process event triggered 
 TEST_F(ApplicationTest, processEventTriggered) {
-    MockApplication app(mock_dispatcher, manager);
+    MockApplication app(config ,mock_dispatcher, manager, scripter);
 
     EXPECT_CALL(app, hasStarted())
         .WillRepeatedly(Return(false));
@@ -108,7 +112,7 @@ TEST_F(ApplicationTest, processEventTriggered) {
 /// Verifies that process cannot be called after shutdown.
 /// also verifies no events occur after the shutdown
 TEST_F(ApplicationTest, DiesWhenProcessCalledAfterShutdown) {
-    MockApplication app(mock_dispatcher, manager);
+    MockApplication app(config ,mock_dispatcher, manager, scripter);
 
     Expectation expect_on_startup = EXPECT_CALL(*mock_dispatcher, trigger(_));
     EXPECT_CALL(app, hasStarted())
@@ -146,7 +150,7 @@ TEST_F(ApplicationTest, doesLoadConfigurationFile)
     EXPECT_CALL(*manager, registerStorageType(_,"swganh","localhost","root", "swganh"));
 
     EXPECT_NO_THROW(
-        MockApplication app(config_files,mock_dispatcher, manager);
+        MockApplication app(config_files ,mock_dispatcher, manager, scripter);
     );
 }
 TEST_F(ApplicationTest, cantLoadConfigFile)
@@ -156,7 +160,7 @@ TEST_F(ApplicationTest, cantLoadConfigFile)
 
     // expectation is an exception is thrown as file not found
     EXPECT_ANY_THROW(
-        MockApplication app(config_files,mock_dispatcher, manager);    
+        MockApplication app(config_files ,mock_dispatcher, manager, scripter);  
     ); 
 }
 /// checks based on a test cfg file we are able to load and register two storage types
@@ -166,12 +170,13 @@ TEST_F(ApplicationTest, foundConfigNoValidValues)
 	config_files.push_back("invalid_data.cfg");
     
     EXPECT_ANY_THROW(
-        MockApplication app(config_files,mock_dispatcher, manager);
+        MockApplication app(config_files ,mock_dispatcher, manager, scripter);
     );
 }
 
 void ApplicationTest::SetUp()
 {    
+    // create test files
     ofstream of("general.cfg");
     of << "# Cluster Configuration " << endl;
     of << "cluster.name = naritus " << endl;
@@ -191,7 +196,8 @@ void ApplicationTest::SetUp()
     of.open("invalid_data.cfg");
     of << "nothing to see here" << endl;
     of.close();
-
+    
+    scripter = make_shared<MockScriptingManager>();
     manager = make_shared<MockDatabaseManager>();
     mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
 

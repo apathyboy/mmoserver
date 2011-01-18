@@ -31,24 +31,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <iostream>
 #include <fstream>
 
+#include <anh/event_dispatcher/event_dispatcher.h>
+#include <anh/database/database_manager.h>
+#include <anh/scripting/scripting_manager.h>
+
 using namespace std;
 using namespace anh;
 using namespace event_dispatcher;
 using namespace database;
+using namespace scripting;
 
-BaseApplication::BaseApplication(shared_ptr<IEventDispatcher> event_dispatcher, shared_ptr<DatabaseManagerInterface> db_manager)
-    : configuration_options_description_("Configuration Options")
-    , argc_(0)
-    , argv_(nullptr)
-    , started_(false)
-{
-    event_dispatcher_ = event_dispatcher;
-    db_manager_ = db_manager;
-    init_();
-    addDataSourcesFromOptions_();
-}
-
-BaseApplication::BaseApplication(int argc, const char** argv, shared_ptr<IEventDispatcher> event_dispatcher, shared_ptr<DatabaseManagerInterface> db_manager)
+BaseApplication::BaseApplication(list<string> config_files, int argc, const char* argv[]
+, shared_ptr<IEventDispatcher> event_dispatcher
+, shared_ptr<DatabaseManagerInterface> db_manager, shared_ptr<ScriptingManagerInterface> scripting_manager)
     : configuration_options_description_("Configuration Options")
     , argc_(argc)
     , argv_(argv)
@@ -56,10 +51,28 @@ BaseApplication::BaseApplication(int argc, const char** argv, shared_ptr<IEventD
 {
     event_dispatcher_ = event_dispatcher;
     db_manager_ = db_manager;
+    scripting_manager_ = scripting_manager;
     init_();
     addDataSourcesFromOptions_();
 }
-BaseApplication::BaseApplication(std::list<std::string> config_files, std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher, std::shared_ptr<database::DatabaseManagerInterface> db_manager)
+
+BaseApplication::BaseApplication(int argc, const char* argv[]
+, shared_ptr<IEventDispatcher> event_dispatcher
+, shared_ptr<DatabaseManagerInterface> db_manager, shared_ptr<ScriptingManagerInterface> scripting_manager)
+    : configuration_options_description_("Configuration Options")
+    , argc_(argc)
+    , argv_(argv)
+    , started_(false)
+{
+    event_dispatcher_ = event_dispatcher;
+    db_manager_ = db_manager;
+    scripting_manager_ = scripting_manager;
+
+    init_();
+    addDataSourcesFromOptions_();
+}
+BaseApplication::BaseApplication(list<string> config_files, shared_ptr<IEventDispatcher> event_dispatcher
+, shared_ptr<DatabaseManagerInterface> db_manager, shared_ptr<ScriptingManagerInterface> scripting_manager)
     : configuration_options_description_("Configuration Options")
     , argc_(0)
     , argv_(nullptr)
@@ -67,6 +80,8 @@ BaseApplication::BaseApplication(std::list<std::string> config_files, std::share
 {
     event_dispatcher_ = event_dispatcher;
     db_manager_ = db_manager;
+    scripting_manager_ = scripting_manager;
+
     init_();
     loadOptions_(config_files);
     addDataSourcesFromOptions_();

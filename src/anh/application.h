@@ -31,13 +31,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cstdint>
 #include <list>
 #include <boost/program_options.hpp>
-#include <anh/event_dispatcher/event_dispatcher.h>
-#include <anh/database/database_manager.h>
+
 
 /*! \brief Common is a catch-all library containing primarily base classes and
  * classes used for maintaining application lifetimes.
  */
 namespace anh {
+// forward declarations
+namespace event_dispatcher { class IEventDispatcher; class IEvent; }
+namespace database { class DatabaseManagerInterface; }
+namespace scripting { class ScriptingManagerInterface; }
 
 /**
  * \brief A simple interface for all servers in the cluster.
@@ -58,9 +61,24 @@ public:
     /**
      * Initializes general configuration options used between all servers in the cluster.
      */
-    BaseApplication(std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher, std::shared_ptr<database::DatabaseManagerInterface> db_manager);
-    BaseApplication(std::list<std::string> config_files, std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher, std::shared_ptr<database::DatabaseManagerInterface> db_manager);
-    BaseApplication(int argc, const char* argv[], std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher, std::shared_ptr<database::DatabaseManagerInterface> db_manager);
+    BaseApplication(
+          std::list<std::string> config_files
+        , int argc, const char* argv[]
+        , std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher
+        , std::shared_ptr<database::DatabaseManagerInterface> db_manager
+        , std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager);
+
+    BaseApplication(
+          std::list<std::string> config_files
+        , std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher
+        , std::shared_ptr<database::DatabaseManagerInterface> db_manager
+        , std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager);
+
+    BaseApplication(
+          int argc, const char* argv[]
+        , std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher
+        , std::shared_ptr<database::DatabaseManagerInterface> db_manager
+        , std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager);
     
     /**
      * Default Deconstructor.
@@ -71,9 +89,10 @@ public:
     void process();
     void shutdown();
 
-    boost::program_options::variables_map getConfigVarMap() { return configuration_variables_map_; }
+    boost::program_options::variables_map configuration_variables_map() { return configuration_variables_map_; }
     std::shared_ptr<database::DatabaseManagerInterface> database_manager() { return db_manager_; }
     std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher() { return event_dispatcher_; }
+    std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager() { return scripting_manager_; }
 protected:
 
     /// helper function to init certain objects
@@ -116,12 +135,13 @@ protected:
     void loadOptions_(uint32_t argc, char* argv[], std::list<std::string> config_files);
 
     // base events to be triggered
-    std::shared_ptr<event_dispatcher::SimpleEvent> startup_event;
-    std::shared_ptr<event_dispatcher::SimpleEvent> process_event;
-    std::shared_ptr<event_dispatcher::SimpleEvent> shutdown_event;
+    std::shared_ptr<event_dispatcher::IEvent> startup_event;
+    std::shared_ptr<event_dispatcher::IEvent> process_event;
+    std::shared_ptr<event_dispatcher::IEvent> shutdown_event;
 
     std::shared_ptr<database::DatabaseManagerInterface> db_manager_;
     std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher_;
+    std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager_;
 
     boost::program_options::options_description configuration_options_description_;
     boost::program_options::variables_map configuration_variables_map_;
