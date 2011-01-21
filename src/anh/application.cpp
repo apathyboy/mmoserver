@@ -108,8 +108,7 @@ void BaseApplication::init_() {
 }
 
 void BaseApplication::startup() {
-    // startup logic here
-    
+    // startup logic here    
     startup_event = make_shared<SimpleEvent>("Startup");
     event_dispatcher_->trigger(startup_event);
 }
@@ -129,6 +128,8 @@ void BaseApplication::shutdown() {
     event_dispatcher_->trigger(shutdown_event);
 }
 void BaseApplication::registerEventTypes_() {
+    if (event_dispatcher_ == nullptr)
+        throw runtime_error("Event Dispatcher must be instantiated.");
     // register default event types
     event_dispatcher_->registerEventType("Startup");
     event_dispatcher_->registerEventType("Process");
@@ -239,6 +240,10 @@ bool BaseApplication::addDataSourcesFromOptions_()
     // check to see if options have been loaded properly
     if (configuration_variables_map_.size() < 1)
         return false;
+    if (db_manager_ == nullptr){
+        throw runtime_error("Database Manager must be instantiated in order to add Data Sources.");
+        return false;
+    }
 
     try {
         // register the galaxy

@@ -187,6 +187,41 @@ TEST_F(ApplicationTest, foundConfigNoValidValues)
         buildBasicApplication();
     );
 }
+TEST_F(ApplicationTest, doesHandleNullPtrScripter)
+{
+    scripter = nullptr;
+    manager = make_shared<MockDatabaseManager>();
+    directory = make_shared<MockServerDirectory>();
+    mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
+
+    EXPECT_NO_THROW(
+        shared_ptr<MockApplication> app = make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
+        );
+}
+TEST_F(ApplicationTest, doesHandleNullPtrEvent)
+{
+    scripter = nullptr;
+    manager = make_shared<MockDatabaseManager>();
+    directory = make_shared<MockServerDirectory>();
+    mock_dispatcher = nullptr;
+    
+    EXPECT_ANY_THROW(
+        shared_ptr<MockApplication> app = make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
+        );
+}
+TEST_F(ApplicationTest, doesHandleNullPtrDB)
+{
+    config.push_back("general.cfg");
+
+    scripter = nullptr;
+    manager = nullptr;
+    directory = make_shared<MockServerDirectory>();
+    mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
+
+    EXPECT_ANY_THROW(
+        shared_ptr<MockApplication> app = make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
+        );
+}
 
 void ApplicationTest::SetUp()
 {    
