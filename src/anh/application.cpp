@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <anh/event_dispatcher/event_dispatcher.h>
 #include <anh/database/database_manager.h>
 #include <anh/scripting/scripting_manager.h>
+#include <anh/server_directory/server_directory.h>
 
 using namespace std;
 using namespace anh;
@@ -43,7 +44,9 @@ using namespace scripting;
 
 BaseApplication::BaseApplication(list<string> config_files, int argc, const char* argv[]
 , shared_ptr<IEventDispatcher> event_dispatcher
-, shared_ptr<DatabaseManagerInterface> db_manager, shared_ptr<ScriptingManagerInterface> scripting_manager)
+, shared_ptr<IDatabaseManager> db_manager
+, std::shared_ptr<scripting::IScriptingManager> scripting_manager
+, std::shared_ptr<server_directory::IServerDirectory> server_directory)
     : configuration_options_description_("Configuration Options")
     , argc_(argc)
     , argv_(argv)
@@ -52,13 +55,17 @@ BaseApplication::BaseApplication(list<string> config_files, int argc, const char
     event_dispatcher_ = event_dispatcher;
     db_manager_ = db_manager;
     scripting_manager_ = scripting_manager;
+    server_directory_ = server_directory;
+
     init_();
     addDataSourcesFromOptions_();
 }
 
 BaseApplication::BaseApplication(int argc, const char* argv[]
 , shared_ptr<IEventDispatcher> event_dispatcher
-, shared_ptr<DatabaseManagerInterface> db_manager, shared_ptr<ScriptingManagerInterface> scripting_manager)
+, shared_ptr<IDatabaseManager> db_manager
+, std::shared_ptr<scripting::IScriptingManager> scripting_manager
+, std::shared_ptr<server_directory::IServerDirectory> server_directory)
     : configuration_options_description_("Configuration Options")
     , argc_(argc)
     , argv_(argv)
@@ -67,12 +74,16 @@ BaseApplication::BaseApplication(int argc, const char* argv[]
     event_dispatcher_ = event_dispatcher;
     db_manager_ = db_manager;
     scripting_manager_ = scripting_manager;
+    server_directory_ = server_directory;
 
     init_();
     addDataSourcesFromOptions_();
 }
-BaseApplication::BaseApplication(list<string> config_files, shared_ptr<IEventDispatcher> event_dispatcher
-, shared_ptr<DatabaseManagerInterface> db_manager, shared_ptr<ScriptingManagerInterface> scripting_manager)
+BaseApplication::BaseApplication(list<string> config_files
+, shared_ptr<IEventDispatcher> event_dispatcher
+, shared_ptr<IDatabaseManager> db_manager
+, std::shared_ptr<scripting::IScriptingManager> scripting_manager
+, std::shared_ptr<server_directory::IServerDirectory> server_directory)
     : configuration_options_description_("Configuration Options")
     , argc_(0)
     , argv_(nullptr)
@@ -81,6 +92,7 @@ BaseApplication::BaseApplication(list<string> config_files, shared_ptr<IEventDis
     event_dispatcher_ = event_dispatcher;
     db_manager_ = db_manager;
     scripting_manager_ = scripting_manager;
+    server_directory_ = server_directory;
 
     init_();
     loadOptions_(config_files);

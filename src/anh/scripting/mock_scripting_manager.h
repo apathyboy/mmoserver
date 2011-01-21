@@ -24,7 +24,7 @@
 namespace anh{
 namespace scripting{
 
-class MockScriptingManager : public ScriptingManagerInterface
+class MockScriptingManager : public IScriptingManager
 {
     MOCK_METHOD1(load, void(const std::string& filename));
     MOCK_METHOD1(run, void(const std::string& filename));

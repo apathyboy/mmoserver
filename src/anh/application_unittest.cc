@@ -23,6 +23,7 @@
 #include <anh/database/mock_cppconn.h>
 #include <anh/database/mock_database_manager.h>
 #include <anh/scripting/mock_scripting_manager.h>
+#include <anh/server_directory/mock_server_directory.h>
 #include <anh/event_dispatcher/mock_event_dispatcher.h>
 #include <anh/scripting/scripting_manager.h>
 
@@ -32,14 +33,16 @@ using namespace testing;
 using namespace event_dispatcher;
 using namespace database;
 using namespace scripting;
+using namespace server_directory;
 
 namespace {
 
 class MockApplication : public BaseApplication {
 public:
     MockApplication(list<string> config_files, shared_ptr<IEventDispatcher> event_dispatcher
-    , shared_ptr<DatabaseManagerInterface> db_manager, shared_ptr<ScriptingManagerInterface> scripting_manager)
-    : BaseApplication(config_files, event_dispatcher, db_manager, scripting_manager){};
+    , shared_ptr<IDatabaseManager> db_manager, shared_ptr<IScriptingManager> scripting_manager
+    , shared_ptr<IServerDirectory> server_directory)
+    : BaseApplication(config_files, event_dispatcher, db_manager, scripting_manager, server_directory){};
     MOCK_CONST_METHOD0(hasStarted, bool());
 };
 
@@ -49,7 +52,16 @@ public:
     list<string> config;
     shared_ptr<MockScriptingManager> scripter;
     shared_ptr<MockDatabaseManager> manager;
-    shared_ptr<NiceMock<MockEventDispatcher>> mock_dispatcher;    
+    shared_ptr<MockServerDirectory> directory;
+    shared_ptr<NiceMock<MockEventDispatcher>> mock_dispatcher;  
+
+    shared_ptr<MockApplication> buildBasicApplication() {
+        scripter = make_shared<MockScriptingManager>();
+        manager = make_shared<MockDatabaseManager>();
+        directory = make_shared<MockServerDirectory>();
+        mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
+        return make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
+    }
 protected:
     virtual void SetUp();
     virtual void TearDown();
@@ -57,120 +69,122 @@ protected:
 
 /// tests that the app won't do any processing if the startup process hasn't run
 TEST_F(ApplicationTest, dieOnProcessIfNotStarted) {
-    MockApplication app(config ,mock_dispatcher, manager, scripter);
+    shared_ptr<MockApplication> app = buildBasicApplication();
 
-    EXPECT_CALL(app, hasStarted())
+    EXPECT_CALL(*app, hasStarted())
         .WillRepeatedly(Return(false));
 
-    ASSERT_DEATH(app.process(), "Must call startup before process");
+    ASSERT_DEATH(app->process(), "Must call startup before process");
 }
 /// verify the Startup event is triggered on startup
 TEST_F(ApplicationTest, startupEventTriggered) {
-    MockApplication app(config ,mock_dispatcher, manager, scripter);
+    shared_ptr<MockApplication> app = buildBasicApplication();
 
     EXPECT_CALL(*mock_dispatcher, trigger(_));
-    app.startup();
+    app->startup();
 
-    EXPECT_CALL(app, hasStarted())
+    EXPECT_CALL(*app, hasStarted())
         .WillRepeatedly(Return(true));
 }
 /// verify the Startup event is not triggered if startup isn't called
 TEST_F(ApplicationTest, startupEventNotTriggered) {
-    MockApplication app(config ,mock_dispatcher, manager, scripter);
+    shared_ptr<MockApplication> app = buildBasicApplication();
 
-    EXPECT_CALL(app, hasStarted())
+    EXPECT_CALL(*app, hasStarted())
         .WillRepeatedly(Return(false));
 
     EXPECT_CALL(*mock_dispatcher, trigger(_))
         .Times(0);
 
-    ASSERT_DEATH(app.process(), "Must call startup before process");
+    ASSERT_DEATH(app->process(), "Must call startup before process");
 
-    EXPECT_CALL(app, hasStarted())
+    EXPECT_CALL(*app, hasStarted())
         .WillRepeatedly(Return(false));
 }
 
 /// verify the Process event triggered 
 TEST_F(ApplicationTest, processEventTriggered) {
-    MockApplication app(config ,mock_dispatcher, manager, scripter);
+    shared_ptr<MockApplication> app = buildBasicApplication();
 
-    EXPECT_CALL(app, hasStarted())
+    EXPECT_CALL(*app, hasStarted())
         .WillRepeatedly(Return(false));
 
     // once for Startup and once for Process
     EXPECT_CALL(*mock_dispatcher, trigger(_))
         .Times(2);
 
-    app.startup();
+    app->startup();
 
-    EXPECT_CALL(app, hasStarted())
+    EXPECT_CALL(*app, hasStarted())
         .WillRepeatedly(Return(true));
 
-    app.process();
+    app->process();
 }
 
 /// Verifies that process cannot be called after shutdown.
 /// also verifies no events occur after the shutdown
 TEST_F(ApplicationTest, DiesWhenProcessCalledAfterShutdown) {
-    MockApplication app(config ,mock_dispatcher, manager, scripter);
+    shared_ptr<MockApplication> app = buildBasicApplication();
 
     Expectation expect_on_startup = EXPECT_CALL(*mock_dispatcher, trigger(_));
-    EXPECT_CALL(app, hasStarted())
+    EXPECT_CALL(*app, hasStarted())
         .After(expect_on_startup)
         .WillRepeatedly(Return(true));
     // start testing the app here
-    app.startup();
+    app->startup();
     
     EXPECT_CALL(*mock_dispatcher, trigger(_));
 
-    ASSERT_TRUE(app.hasStarted());
-    app.process();
+    ASSERT_TRUE(app->hasStarted());
+    app->process();
 
     Expectation expect_on_shutdown = EXPECT_CALL(*mock_dispatcher, trigger(_));
-    EXPECT_CALL(app, hasStarted())
+    EXPECT_CALL(*app, hasStarted())
         .After(expect_on_shutdown)
         .WillRepeatedly(Return(false));
 
-    app.shutdown();
+    app->shutdown();
 
     EXPECT_CALL(*mock_dispatcher, trigger(_))
         .Times(0);
 
-    ASSERT_DEATH(app.process(), "Must call startup before process");
+    ASSERT_DEATH(app->process(), "Must call startup before process");
 }
 /// BASE CONFIGURATION TESTS
 
 /// checks based on a test cfg file we are able to load and register two storage types
 TEST_F(ApplicationTest, doesLoadConfigurationFile)
 {
-    list<string> config_files;
-	config_files.push_back("general.cfg");
+    config.push_back("general.cfg");
+    scripter = make_shared<MockScriptingManager>();
+    manager = make_shared<MockDatabaseManager>();
+    directory = make_shared<MockServerDirectory>();
+    mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
     
     EXPECT_CALL(*manager, registerStorageType(_,"swganh_static","localhost","root", "swganh"));
     EXPECT_CALL(*manager, registerStorageType(_,"swganh","localhost","root", "swganh"));
 
     EXPECT_NO_THROW(
-        MockApplication app(config_files ,mock_dispatcher, manager, scripter);
+        shared_ptr<MockApplication> app = make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
     );
 }
 TEST_F(ApplicationTest, cantLoadConfigFile)
 {
-    list<string> config_files;
-	config_files.push_back("notfound.cfg");
+    
+    config.push_back("notfound.cfg");
 
     // expectation is an exception is thrown as file not found
     EXPECT_ANY_THROW(
-        MockApplication app(config_files ,mock_dispatcher, manager, scripter);  
+        buildBasicApplication();
     ); 
 }
 /// checks based on a test cfg file we are able to load and register two storage types
 TEST_F(ApplicationTest, foundConfigNoValidValues)
 {
-    list<string> config_files;
-	config_files.push_back("invalid_data.cfg");
+    config.push_back("invalid_data.cfg");
     
     EXPECT_ANY_THROW(
-        MockApplication app(config_files ,mock_dispatcher, manager, scripter);
+        buildBasicApplication();
     );
 }
 
@@ -196,11 +210,6 @@ void ApplicationTest::SetUp()
     of.open("invalid_data.cfg");
     of << "nothing to see here" << endl;
     of.close();
-    
-    scripter = make_shared<MockScriptingManager>();
-    manager = make_shared<MockDatabaseManager>();
-    mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
-
 }
 void ApplicationTest::TearDown()
 {

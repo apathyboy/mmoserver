@@ -39,13 +39,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 namespace anh {
 // forward declarations
 namespace event_dispatcher { class IEventDispatcher; class IEvent; }
-namespace database { class DatabaseManagerInterface; }
-namespace scripting { class ScriptingManagerInterface; }
+namespace database { class IDatabaseManager; }
+namespace scripting { class IScriptingManager; }
+namespace server_directory { class IServerDirectory; }
 
 /**
  * \brief A simple interface for all servers in the cluster.
  */
-class ApplicationInterface {
+class IApplication{
 public:
     virtual bool hasStarted() const = 0;
     virtual void startup() = 0;
@@ -56,7 +57,7 @@ public:
 /**
  * \brief Holds common functionality used between all servers in the cluster.
  */
-class BaseApplication : public ApplicationInterface {
+class BaseApplication : public IApplication {
 public:
     /**
      * Initializes general configuration options used between all servers in the cluster.
@@ -65,20 +66,23 @@ public:
           std::list<std::string> config_files
         , int argc, const char* argv[]
         , std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher
-        , std::shared_ptr<database::DatabaseManagerInterface> db_manager
-        , std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager);
+        , std::shared_ptr<database::IDatabaseManager> db_manager
+        , std::shared_ptr<scripting::IScriptingManager> scripting_manager
+        , std::shared_ptr<server_directory::IServerDirectory> server_directory);
 
     BaseApplication(
           std::list<std::string> config_files
         , std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher
-        , std::shared_ptr<database::DatabaseManagerInterface> db_manager
-        , std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager);
+        , std::shared_ptr<database::IDatabaseManager> db_manager
+        , std::shared_ptr<scripting::IScriptingManager> scripting_manager
+        , std::shared_ptr<server_directory::IServerDirectory> server_directory);
 
     BaseApplication(
           int argc, const char* argv[]
         , std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher
-        , std::shared_ptr<database::DatabaseManagerInterface> db_manager
-        , std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager);
+        , std::shared_ptr<database::IDatabaseManager> db_manager
+        , std::shared_ptr<scripting::IScriptingManager> scripting_manager
+        , std::shared_ptr<server_directory::IServerDirectory> server_directory);
     
     /**
      * Default Deconstructor.
@@ -90,9 +94,10 @@ public:
     void shutdown();
 
     boost::program_options::variables_map configuration_variables_map() { return configuration_variables_map_; }
-    std::shared_ptr<database::DatabaseManagerInterface> database_manager() { return db_manager_; }
+    std::shared_ptr<database::IDatabaseManager> database_manager() { return db_manager_; }
     std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher() { return event_dispatcher_; }
-    std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager() { return scripting_manager_; }
+    std::shared_ptr<scripting::IScriptingManager> scripting_manager() { return scripting_manager_; }
+    std::shared_ptr<server_directory::IServerDirectory> server_directory() { return server_directory_; }
 protected:
 
     /// helper function to init certain objects
@@ -139,9 +144,10 @@ protected:
     std::shared_ptr<event_dispatcher::IEvent> process_event;
     std::shared_ptr<event_dispatcher::IEvent> shutdown_event;
 
-    std::shared_ptr<database::DatabaseManagerInterface> db_manager_;
+    std::shared_ptr<database::IDatabaseManager> db_manager_;
     std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher_;
-    std::shared_ptr<scripting::ScriptingManagerInterface> scripting_manager_;
+    std::shared_ptr<scripting::IScriptingManager> scripting_manager_;
+    std::shared_ptr<server_directory::IServerDirectory> server_directory_;
 
     boost::program_options::options_description configuration_options_description_;
     boost::program_options::variables_map configuration_variables_map_;

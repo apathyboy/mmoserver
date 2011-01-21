@@ -43,9 +43,9 @@ typedef anh::HashString StorageType;
 /*! Interface class that exposes an API for managing mysql connector/c++
 * connections.
 */
-class DatabaseManagerInterface {
+class IDatabaseManager {
 public:    
-    virtual ~DatabaseManagerInterface() {}
+    virtual ~IDatabaseManager() {}
 
     /*! Check to see whether a specified storage type has been registered with 
     * the DatabaseManager instance or not.
@@ -80,11 +80,11 @@ public:
 
 class DatabaseManagerImpl;
 
-/*! Concrete implementation of the DatabaseManagerInterface API.
+/*! Concrete implementation of the IDatabaseManager API.
 *
-* \see DatabaseManagerInterface
+* \see IDatabaseManager
 */
-class DatabaseManager : public DatabaseManagerInterface, private boost::noncopyable {
+class DatabaseManager : public IDatabaseManager, private boost::noncopyable {
 public:
     /**
     * \brief Overloaded constructor taking an sql driver.
@@ -96,16 +96,16 @@ public:
 
     ~DatabaseManager();
 
-    /// \see DatabaseManagerInterface::hasStorageType
+    /// \see IDatabaseManager::hasStorageType
     bool hasStorageType(const StorageType& storage_type) const;
     
-    /// \see DatabaseManagerInterface::registerStorageType
+    /// \see IDatabaseManager::registerStorageType
     bool registerStorageType(const StorageType& storage_type, const std::string& schema, const std::string& host, const std::string& username, const std::string& password);
     
-    /// \see DatabaseManagerInterface::hasConnection
+    /// \see IDatabaseManager::hasConnection
     bool hasConnection(const StorageType& storage_type) const;
     
-    /// \see DatabaseManagerInterface::getConnection
+    /// \see IDatabaseManager::getConnection
     std::shared_ptr<sql::Connection> getConnection(const StorageType& storage_type);
     
 private:

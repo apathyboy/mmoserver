@@ -26,7 +26,7 @@
 namespace anh {
 namespace database{
 
-class MockDatabaseManager : public DatabaseManagerInterface
+class MockDatabaseManager : public IDatabaseManager
 {
 public:
     MOCK_CONST_METHOD1(hasStorageType, bool(const StorageType& storage_type));

@@ -29,7 +29,7 @@ namespace scripting{
 *   within C++.
 *
 */
-class ScriptingManagerInterface
+class IScriptingManager
 {
 public:
     /**
@@ -37,7 +37,7 @@ public:
     *
     * \param base_path sets where the engine looks for the files
     */
-    virtual ~ScriptingManagerInterface(){}
+    virtual ~IScriptingManager(){}
     /**
     * \brief load's the script into memory
     *  and stores the str into a 
