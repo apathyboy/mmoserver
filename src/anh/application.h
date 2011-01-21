@@ -32,10 +32,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <list>
 #include <boost/program_options.hpp>
 
-
-/*! \brief Common is a catch-all library containing primarily base classes and
- * classes used for maintaining application lifetimes.
- */
 namespace anh {
 // forward declarations
 namespace event_dispatcher { class IEventDispatcher; class IEvent; }
@@ -56,6 +52,8 @@ public:
 
 /**
  * \brief Holds common functionality used between all servers in the cluster.
+ *  Including loading base configuration, event dispatching, scripting, database managing
+*   and registration with server directory.
  */
 class BaseApplication : public IApplication {
 public:
@@ -107,9 +105,16 @@ protected:
     *   If any specific logic is required the app should attach a listener to these types
     */
     void registerEventTypes_();
+    /**
+    *   adds data source from default configuration loaded in
+    *   @addDefaultOptions_ /requires IDatabaseManager
+    */
 
     bool addDataSourcesFromOptions_();
-
+    /**
+    *   Adds default configuration options to be used in @loadOptions_
+    *   
+    */
     void addDefaultOptions_();
 
     /**
