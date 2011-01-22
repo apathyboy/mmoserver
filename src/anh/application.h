@@ -32,10 +32,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <list>
 #include <boost/program_options.hpp>
 
+namespace sql { class Connection; class Driver; }
 namespace anh {
 // forward declarations
 namespace event_dispatcher { class IEventDispatcher; class IEvent; }
-namespace database { class IDatabaseManager; }
+namespace database { class IDatabaseManager; class DatabaseManager; }
 namespace scripting { class IScriptingManager; }
 namespace server_directory { class IServerDirectory; }
 
@@ -62,7 +63,7 @@ public:
      */
     BaseApplication(
           std::list<std::string> config_files
-        , int argc, const char* argv[]
+        , int argc, char* argv[]
         , std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher
         , std::shared_ptr<database::IDatabaseManager> db_manager
         , std::shared_ptr<scripting::IScriptingManager> scripting_manager
@@ -76,7 +77,7 @@ public:
         , std::shared_ptr<server_directory::IServerDirectory> server_directory);
 
     BaseApplication(
-          int argc, const char* argv[]
+          int argc, char* argv[]
         , std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher
         , std::shared_ptr<database::IDatabaseManager> db_manager
         , std::shared_ptr<scripting::IScriptingManager> scripting_manager
@@ -90,6 +91,17 @@ public:
     void startup();
     void process();
     void shutdown();
+
+    /**
+    *   creates a server directory from sql connection
+    *
+    *   \return shared_ptr to the ServerDirectory
+    */
+    virtual std::shared_ptr<server_directory::IServerDirectory> createServerDirectory(std::shared_ptr<sql::Connection> conn);
+    /**
+    *   creates a database manager from default configuration
+    */
+    virtual std::shared_ptr<database::DatabaseManager> createDatabaseManager(sql::Driver* driver);
 
     boost::program_options::variables_map configuration_variables_map() { return configuration_variables_map_; }
     std::shared_ptr<database::IDatabaseManager> database_manager() { return db_manager_; }
@@ -116,6 +128,12 @@ protected:
     *   
     */
     void addDefaultOptions_();
+
+    /**
+    *   Uses loaded cluster information to register the application with the server directory
+    *
+    */
+    void registerApp_();
 
     /**
      * Loads configuration options using the configuration options description from
@@ -145,9 +163,9 @@ protected:
     void loadOptions_(uint32_t argc, char* argv[], std::list<std::string> config_files);
 
     // base events to be triggered
-    std::shared_ptr<event_dispatcher::IEvent> startup_event;
-    std::shared_ptr<event_dispatcher::IEvent> process_event;
-    std::shared_ptr<event_dispatcher::IEvent> shutdown_event;
+    std::shared_ptr<event_dispatcher::IEvent> startup_event_;
+    std::shared_ptr<event_dispatcher::IEvent> process_event_;
+    std::shared_ptr<event_dispatcher::IEvent> shutdown_event_;
 
     std::shared_ptr<database::IDatabaseManager> db_manager_;
     std::shared_ptr<event_dispatcher::IEventDispatcher> event_dispatcher_;
@@ -157,7 +175,7 @@ protected:
     boost::program_options::options_description configuration_options_description_;
     boost::program_options::variables_map configuration_variables_map_;
     int argc_;
-    const char** argv_;
+    char** argv_;
     bool started_;
 };
 

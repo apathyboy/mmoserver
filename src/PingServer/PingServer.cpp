@@ -38,6 +38,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <boost/thread/thread.hpp>
 
+#include <anh/event_dispatcher/event_dispatcher.h>
+#include <anh/server_directory/datastore.h>
+#include <anh/database/database_manager.h>
 #include "Common/BuildInfo.h"
 #include "Utils/utils.h"
 
@@ -47,34 +50,41 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define RECEIVE_BUFFER 512
 
-PingServer::PingServer(int argc, char* argv[])
-    : BaseServer()
+using namespace anh::event_dispatcher;
+using namespace anh::database;
+using namespace std;
+
+PingServer::PingServer(int argc, char* argv[], std::list<std::string> config_files
+    , shared_ptr<IEventDispatcher> dispatcher)
+    : BaseApplication(argc, argv, dispatcher, nullptr, nullptr, nullptr)
 	, io_service_()
     , socket_(io_service_)
     , receive_buffer_(RECEIVE_BUFFER)
 {	
-	// Load Configuration Options
-	std::list<std::string> config_files;
-	config_files.push_back("config/general.cfg");
-	config_files.push_back("config/pingserver.cfg");
-	LoadOptions_(argc, argv, config_files);
+    auto startupListener = make_pair(EventListenerType("startup_listener"), [=](shared_ptr<IEvent> incoming_event) -> bool
+    {
+        boost::asio::ip::udp::endpoint endpoint(boost::asio::ip::udp::v4(), configuration_variables_map_["network.bind_port"].as<uint16_t>());
+        socket_.open(endpoint.protocol());
+        socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+        socket_.bind(endpoint);
 
-	boost::asio::ip::udp::endpoint endpoint(boost::asio::ip::udp::v4(), configuration_variables_map_["BindPort"].as<uint16_t>());
-    socket_.open(endpoint.protocol());
-    socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
-    socket_.bind(endpoint);
+        return false;
+    });
 
+    // creating a listener to subscribe to the Process event triggered by the BaseApplication
+    auto processListener = make_pair(EventListenerType("process_listener"), [=](shared_ptr<IEvent> incoming_event) -> bool
+    {
+        AsyncReceive();
+        io_service_.poll();
 
-    AsyncReceive();
+        return false;
+    });
+    dispatcher->subscribe("Startup", startupListener);
+    dispatcher->subscribe("Process", processListener);
 }
 
 PingServer::~PingServer()
 {}
-
-void PingServer::Process()
-{
-    io_service_.poll();
-}
 
 uint64 PingServer::BytesReceived() const
 {
@@ -153,19 +163,26 @@ int main(int argc, char* argv[])
     LOG(WARNING) <<  "PingServer - Build " << GetBuildString().c_str();
 
     try {
-		PingServer ping_server(argc, argv);
+        auto dispatcher = make_shared<EventDispatcher>();
+        list<string> config;
+        config.push_back("config/general.cfg");
+        config.push_back("config/pingserver.cfg");
 
-		LOG(WARNING) << "Welcome to your SWGANH Experience!";
-
-		while (true) {
+		PingServer ping_server(argc, argv, config, dispatcher);
+        ping_server.startup();
+        
+        while (true) {
 			// Check for incoming messages and handle them.
-			ping_server.Process();
+			ping_server.process();
 			boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 
 			// Stop the ping server if a key is hit.
 			if (Anh_Utils::kbhit())
 				if(std::cin.get() == 'q')
+                {
+                    ping_server.shutdown();
 					break;
+                }
 		}
 
 	} catch( std::exception& e ) {

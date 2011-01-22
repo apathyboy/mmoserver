@@ -51,14 +51,14 @@ class ApplicationTest : public testing::Test
 public:
     list<string> config;
     shared_ptr<MockScriptingManager> scripter;
-    shared_ptr<MockDatabaseManager> manager;
-    shared_ptr<MockServerDirectory> directory;
+    shared_ptr<NiceMock<MockDatabaseManager>> manager;
+    shared_ptr<NiceMock<MockServerDirectory>> directory;
     shared_ptr<NiceMock<MockEventDispatcher>> mock_dispatcher;  
 
     shared_ptr<MockApplication> buildBasicApplication() {
         scripter = make_shared<MockScriptingManager>();
-        manager = make_shared<MockDatabaseManager>();
-        directory = make_shared<MockServerDirectory>();
+        manager = make_shared<NiceMock<MockDatabaseManager>>();
+        directory = make_shared<NiceMock<MockServerDirectory>>();
         mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
         return make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
     }
@@ -150,22 +150,21 @@ TEST_F(ApplicationTest, DiesWhenProcessCalledAfterShutdown) {
 
     ASSERT_DEATH(app->process(), "Must call startup before process");
 }
-/// BASE CONFIGURATION TESTS
 
 /// checks based on a test cfg file we are able to load and register two storage types
 TEST_F(ApplicationTest, doesLoadConfigurationFile)
 {
-    config.push_back("general.cfg");
     scripter = make_shared<MockScriptingManager>();
-    manager = make_shared<MockDatabaseManager>();
-    directory = make_shared<MockServerDirectory>();
+    manager = make_shared<NiceMock<MockDatabaseManager>>();
+    directory = make_shared<NiceMock<MockServerDirectory>>();
     mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
     
     EXPECT_CALL(*manager, registerStorageType(_,"swganh_static","localhost","root", "swganh"));
     EXPECT_CALL(*manager, registerStorageType(_,"swganh","localhost","root", "swganh"));
+    shared_ptr<MockApplication> app = make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
 
     EXPECT_NO_THROW(
-        shared_ptr<MockApplication> app = make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
+        app->startup();    
     );
 }
 TEST_F(ApplicationTest, cantLoadConfigFile)
@@ -187,11 +186,21 @@ TEST_F(ApplicationTest, foundConfigNoValidValues)
         buildBasicApplication();
     );
 }
+/// checks if on startup the process is registered with server directory
+TEST_F(ApplicationTest, doesRegisterProcess)
+{
+    shared_ptr<BaseApplication> app = buildBasicApplication();
+    EXPECT_CALL(*directory, registerProcess(_, _, _, _, 44992, 0, 0));
+
+    EXPECT_NO_THROW(
+        app->startup();
+    );
+}
 TEST_F(ApplicationTest, doesHandleNullPtrScripter)
 {
     scripter = nullptr;
-    manager = make_shared<MockDatabaseManager>();
-    directory = make_shared<MockServerDirectory>();
+    manager = make_shared<NiceMock<MockDatabaseManager>>();
+    directory = make_shared<NiceMock<MockServerDirectory>>();
     mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
 
     EXPECT_NO_THROW(
@@ -201,8 +210,8 @@ TEST_F(ApplicationTest, doesHandleNullPtrScripter)
 TEST_F(ApplicationTest, doesHandleNullPtrEvent)
 {
     scripter = nullptr;
-    manager = make_shared<MockDatabaseManager>();
-    directory = make_shared<MockServerDirectory>();
+    manager = make_shared<NiceMock<MockDatabaseManager>>();
+    directory = make_shared<NiceMock<MockServerDirectory>>();
     mock_dispatcher = nullptr;
     
     EXPECT_ANY_THROW(
@@ -215,10 +224,10 @@ TEST_F(ApplicationTest, doesHandleNullPtrDB)
 
     scripter = nullptr;
     manager = nullptr;
-    directory = make_shared<MockServerDirectory>();
+    directory = make_shared<NiceMock<MockServerDirectory>>();
     mock_dispatcher = make_shared<NiceMock<MockEventDispatcher>>();
-
-    EXPECT_ANY_THROW(
+    // we'll build this up if they don't send one
+    EXPECT_NO_THROW(
         shared_ptr<MockApplication> app = make_shared<MockApplication>(config, mock_dispatcher, manager, scripter, directory);
         );
 }
@@ -229,6 +238,8 @@ void ApplicationTest::SetUp()
     ofstream of("general.cfg");
     of << "# Cluster Configuration " << endl;
     of << "cluster.name = naritus " << endl;
+    of << "cluster.process_type = test_service" << endl;
+    of << "cluster.tcp_port = 44992" << endl;
     of << "cluster.datastore.name = global "<< endl;
     of << "cluster.datastore.host = localhost "<< endl;
     of << "cluster.datastore.username = root " << endl;
@@ -245,6 +256,8 @@ void ApplicationTest::SetUp()
     of.open("invalid_data.cfg");
     of << "nothing to see here" << endl;
     of.close();
+
+    config.push_back("general.cfg");
 }
 void ApplicationTest::TearDown()
 {
