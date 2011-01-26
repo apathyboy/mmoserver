@@ -188,12 +188,7 @@ public:
     /*! \return Returns the raw ByteBuffer data */
     std::vector<unsigned char>& raw();
 
-private:
-    template<typename T> void swapEndian(T& data) const;
-    template<typename T> void swapEndian16(T& data) const;
-    template<typename T> void swapEndian32(T& data) const;
-    template<typename T> void swapEndian64(T& data) const;
-        
+private:        
     std::vector<unsigned char> data_;
 
     size_t read_position_;
