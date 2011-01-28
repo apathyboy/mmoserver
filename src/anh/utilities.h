@@ -22,7 +22,7 @@
 
 #include <cstdint>
 #include <algorithm>
-#include <limits>
+#include <type_traits>
 
 namespace anh {
 
@@ -33,90 +33,34 @@ namespace anh {
             uint16_t x = 1;
             return !(*reinterpret_cast<char*>(&x));
         }
-
-        struct bit8_tag{};
-        struct bit16_tag{};
-        struct bit32_tag{};
-        struct bit64_tag{};
-
-        template<typename T> struct integer_traits;
-        
-        template<>
-        struct integer_traits<int8_t> {
-            typedef bit8_tag category;
-        };
-        
-        template<>
-        struct integer_traits<uint8_t> {
-            typedef bit8_tag category;
-        };
-        
-        template<>
-        struct integer_traits<int16_t> {
-            typedef bit16_tag category;
-        };
-        
-        template<>
-        struct integer_traits<uint16_t> {
-            typedef bit16_tag category;
-        };
-        
-        template<>
-        struct integer_traits<int32_t> {
-            typedef bit32_tag category;
-        };
-        
-        template<>
-        struct integer_traits<uint32_t> {
-            typedef bit32_tag category;
-        };
-        
-        template<>
-        struct integer_traits<int64_t> {
-            typedef bit64_tag category;
-        };
-        
-        template<>
-        struct integer_traits<uint64_t> {
-            typedef bit64_tag category;
-        };
         
         template<typename T>
-        T swap_endian_(T value, bit8_tag) {
+        T swap_endian_(T value, std::integral_constant<size_t, 1>) {
             return value;
         }
 
         template<typename T>
-        T swap_endian_(T value, bit16_tag) {
+        T swap_endian_(T value, std::integral_constant<size_t, 2>) {
             return (value >> 8) | (value << 8);
         }
         
         template<typename T>
-        T swap_endian_(T value, bit32_tag) {
+        T swap_endian_(T value, std::integral_constant<size_t, 4>) {
             return (value >> 24) |
                 ((value & 0x00FF0000) >> 8) | ((value & 0x0000FF00) << 8) |
                 (value << 24);
         }
         
         template<typename T>
-        T swap_endian_(T value, bit64_tag) {
+        T swap_endian_(T value, std::integral_constant<size_t, 8>) {
             return (value  >> 56) |
-            #ifdef _WIN32
-                ((value & 0x00FF000000000000) >> 40) |
-                ((value & 0x0000FF0000000000) >> 24) |
-                ((value & 0x000000FF00000000) >> 8)  |
-                ((value & 0x00000000FF000000) << 8)  |
-                ((value & 0x0000000000FF0000) << 24) |
-                ((value & 0x000000000000FF00) << 40) |
-            #else
-                ((value & 0x00FF000000000000LLU) >> 40) |
-                ((value & 0x0000FF0000000000LLU) >> 24) |
-                ((value & 0x000000FF00000000LLU) >> 8)  |
-                ((value & 0x00000000FF000000LLU) << 8)  |
-                ((value & 0x0000000000FF0000LLU) << 24) |
-                ((value & 0x000000000000FF00LLU) << 40) |
-            #endif
-            (value  << 56);
+                ((value & 0x00FF000000000000ULL) >> 40) |
+                ((value & 0x0000FF0000000000ULL) >> 24) |
+                ((value & 0x000000FF00000000ULL) >> 8)  |
+                ((value & 0x00000000FF000000ULL) << 8)  |
+                ((value & 0x0000000000FF0000ULL) << 24) |
+                ((value & 0x000000000000FF00ULL) << 40) |
+                (value  << 56);
         }
     }
 
@@ -128,8 +72,8 @@ namespace anh {
     */
     template<typename T> 
     T swap_endian(T value) {
-        if (std::numeric_limits<T>::is_integer) {
-            return detail::swap_endian_<T>(value, detail::integer_traits<T>::category());
+        if (std::is_integral<T>::value) {
+            return detail::swap_endian_<T>(value, std::integral_constant<size_t, sizeof(T)>());
         }
 
         unsigned char* tmp = reinterpret_cast<unsigned char*>(&value);
@@ -146,7 +90,7 @@ namespace anh {
     */
     template<typename T>
     T host_to_little(T value) {
-        static_assert(std::numeric_limits<T>::is_integer);
+        static_assert(std::is_integral<T>::value);
         return detail::is_big_endian() ? swap_endian(value) : value;
     }
     
@@ -159,7 +103,7 @@ namespace anh {
     */
     template<typename T>
     T host_to_big(T value) {
-        static_assert(std::numeric_limits<T>::is_integer);
+        static_assert(std::is_integral<T>::value);
         return detail::is_big_endian() ? value : swap_endian(value);
     }
     
@@ -172,7 +116,7 @@ namespace anh {
     */
     template<typename T>
     T big_to_host(T value) {
-        static_assert(std::numeric_limits<T>::is_integer);
+        static_assert(std::is_integral<T>::value);
         return detail::is_big_endian() ? value : swap_endian(value);
     }
     
@@ -185,7 +129,7 @@ namespace anh {
     */
     template<typename T>
     T little_to_host(T value) {
-        static_assert(std::numeric_limits<T>::is_integer);
+        static_assert(std::is_integral<T>::value);
         return detail::is_big_endian() ? swap_endian(value) : value;
     }
         
