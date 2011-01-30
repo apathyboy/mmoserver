@@ -48,7 +48,7 @@ const T ByteBuffer::peekAt(size_t offset, bool doSwapEndian) const {
   T data = *reinterpret_cast<const T*>(&data_[offset]);
 
   if (doSwapEndian)
-      data = anh::swap_endian<T>(data);
+      data = anh::swapEndian<T>(data);
 
   return data;
 }

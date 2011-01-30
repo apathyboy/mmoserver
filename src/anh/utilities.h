@@ -21,116 +21,109 @@
 #define ANH_UTILITIES_H_
 
 #include <cstdint>
-#include <algorithm>
 #include <type_traits>
 
 namespace anh {
 
     namespace detail {
-        /// @TODO Remove quotes from around constexpr when visual studio begins
-        /// supporting that c++0x feature.
-        /*constexpr*/ bool inline is_big_endian() {
+        /// @TODO Remove comment when visual studio begins supporting constexpr.
+        /*constexpr*/ bool inline isBigEndian() {
             uint16_t x = 1;
             return !(*reinterpret_cast<char*>(&x));
         }
         
         template<typename T>
-        T swap_endian_(T value, std::integral_constant<size_t, 1>) {
+        T swapEndian_(T value, std::integral_constant<size_t, 1>) {
             return value;
         }
 
         template<typename T>
-        T swap_endian_(T value, std::integral_constant<size_t, 2>) {
-            return (value >> 8) | (value << 8);
+        T swapEndian_(T value, std::integral_constant<size_t, 2>) {
+            std::make_unsigned<T>::type& tmp = reinterpret_cast<std::make_unsigned<T>::type&>(value);
+            tmp = (tmp >> 8) | (tmp << 8);
+
+            return value;
         }
         
         template<typename T>
-        T swap_endian_(T value, std::integral_constant<size_t, 4>) {
-            return (value >> 24) |
-                ((value & 0x00FF0000) >> 8) | ((value & 0x0000FF00) << 8) |
-                (value << 24);
+        T swapEndian_(T value, std::integral_constant<size_t, 4>) {
+            std::make_unsigned<T>::type& tmp = reinterpret_cast<std::make_unsigned<T>::type&>(value);
+            tmp = (tmp >> 24) |
+                   ((tmp & 0x00FF0000) >> 8) | ((tmp & 0x0000FF00) << 8) |
+                   (tmp << 24);
+
+            return value;
         }
         
         template<typename T>
-        T swap_endian_(T value, std::integral_constant<size_t, 8>) {
-            return (value  >> 56) |
-                ((value & 0x00FF000000000000ULL) >> 40) |
-                ((value & 0x0000FF0000000000ULL) >> 24) |
-                ((value & 0x000000FF00000000ULL) >> 8)  |
-                ((value & 0x00000000FF000000ULL) << 8)  |
-                ((value & 0x0000000000FF0000ULL) << 24) |
-                ((value & 0x000000000000FF00ULL) << 40) |
-                (value  << 56);
+        T swapEndian_(T value, std::integral_constant<size_t, 8>) {
+            std::make_unsigned<T>::type& tmp = reinterpret_cast<std::make_unsigned<T>::type&>(value);
+            tmp = (tmp >> 56) |
+                ((tmp & 0x00FF000000000000ULL) >> 40) |
+                ((tmp & 0x0000FF0000000000ULL) >> 24) |
+                ((tmp & 0x000000FF00000000ULL) >> 8)  |
+                ((tmp & 0x00000000FF000000ULL) << 8)  |
+                ((tmp & 0x0000000000FF0000ULL) << 24) |
+                ((tmp & 0x000000000000FF00ULL) << 40) |
+                (tmp  << 56);
+
+            return value;
         }
     }
 
-    /*! Swaps the endianness of the passed in value and returns the results.
+    /*! Swaps the endianness of integral values and returns the results.
     *
-    * For standard integer types (any of the intX_t/uintX_t types)
-    * specializations exist to ensure the fastest performance. All other types
-    * are treated as char* and reversed.
-    */
-    template<typename T> 
-    T swap_endian(T value) {
-        if (std::is_integral<T>::value) {
-            return detail::swap_endian_<T>(value, std::integral_constant<size_t, sizeof(T)>());
-        }
-
-        unsigned char* tmp = reinterpret_cast<unsigned char*>(&value);
-        std::reverse(tmp, tmp + sizeof(T));
-        return value;
-    }
-
-    /*! Converts a value from host-byte order to little endian.
-    *
-    * Only works with integer types.
-    *
-    * \param value The value to convert to little endian
-    * \return The value converted to endian order.
+    * \param value An integral value for which to swap the endianness.
+    * \return A copy of the input parameter with its endianness swapped.
     */
     template<typename T>
-    T host_to_little(T value) {
-        static_assert(std::is_integral<T>::value);
-        return detail::is_big_endian() ? swap_endian(value) : value;
+    T swapEndian(T value) {
+        static_assert(std::is_integral<int>::value, "swap_endian<T> requires T to be an integral type.");
+        return detail::swapEndian_<T>(value, std::integral_constant<size_t, sizeof(T)>());
+    }
+
+    /*! Converts an integral value from host-byte order to little endian.
+    *
+    * \param value An integral value to convert to little endian.
+    * \return The value converted to little endian order.
+    */
+    template<typename T>
+    T hostToLittle(T value) {
+        static_assert(std::is_integral<int>::value, "host_to_little<T> requires T to be an integral type.");
+        return detail::isBigEndian() ? swapEndian(value) : value;
     }
     
-    /*! Converts a value from host-byte order to big endian.
-    *
-    * Only works with integer types.
+    /*! Converts an integral value from host-byte order to big endian.
     *
     * \param value The value to convert to big endian
-    * \return The value converted to endian order.
+    * \return The value converted to big endian order.
     */
     template<typename T>
-    T host_to_big(T value) {
-        static_assert(std::is_integral<T>::value);
-        return detail::is_big_endian() ? value : swap_endian(value);
+    T hostToBig(T value) {
+        static_assert(std::is_integral<int>::value, "host_to_big<T> requires T to be an integral type.");
+        return detail::isBigEndian() ? value : swapEndian(value);
     }
     
-    /*! Converts a value from big endian to host-byte order.
-    *
-    * Only works with integer types.
+    /*! Converts an integral value from big endian to host-byte order.
     *
     * \param value The value to convert to host-byte order.
     * \return The value converted to host-byte order.
     */
     template<typename T>
-    T big_to_host(T value) {
-        static_assert(std::is_integral<T>::value);
-        return detail::is_big_endian() ? value : swap_endian(value);
+    T bigToHost(T value) {
+        static_assert(std::is_integral<int>::value, "big_to_host<T> requires T to be an integral type.");
+        return detail::isBigEndian() ? value : swapEndian(value);
     }
     
-    /*! Converts a value from little endian to host-byte order.
-    *
-    * Only works with integer types.
+    /*! Converts an integral value from little endian to host-byte order.
     *
     * \param value The value to convert to host-byte order.
     * \return The value converted to host-byte order.
     */
     template<typename T>
-    T little_to_host(T value) {
-        static_assert(std::is_integral<T>::value);
-        return detail::is_big_endian() ? swap_endian(value) : value;
+    T littleToHost(T value) {
+        static_assert(std::is_integral<int>::value, "little_to_host<T> requires T to be an integral type.");
+        return detail::isBigEndian() ? swapEndian(value) : value;
     }
         
 }  // namespace anh
