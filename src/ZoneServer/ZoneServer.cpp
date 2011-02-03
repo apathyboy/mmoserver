@@ -89,6 +89,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <boost/thread/thread.hpp>
 
+#include <ios>
+
 using anh::event_dispatcher::EventDispatcher;
 using std::make_shared;
 using std::shared_ptr;
@@ -146,8 +148,8 @@ ZoneServer::ZoneServer(int argc, char* argv[])
 
     LOG(ERROR) << "ZoneServer startup sequence for [" << mZoneName << "]";
 
-    // Create and startup our core services.
-    mDatabaseManager = new DatabaseManager(DatabaseConfig(configuration_variables_map_["DBMinThreads"].as<uint32_t>(), configuration_variables_map_["DBMaxThreads"].as<uint32_t>(), configuration_variables_map_["DBGlobalSchema"].as<std::string>(), configuration_variables_map_["DBGalaxySchema"].as<std::string>(), configuration_variables_map_["DBConfigSchema"].as<std::string>()));
+	// Create and startup our core services.
+	mDatabaseManager = new DatabaseManager(DatabaseConfig(configuration_variables_map_["DBMinThreads"].as<uint32_t>(), configuration_variables_map_["DBMaxThreads"].as<uint32_t>(), configuration_variables_map_["DBGlobalSchema"].as<std::string>(), configuration_variables_map_["DBGalaxySchema"].as<std::string>(), configuration_variables_map_["DBConfigSchema"].as<std::string>()));
 
     // Startup our core modules
     MessageFactory::getSingleton(configuration_variables_map_["GlobalMessageHeap"].as<uint32_t>());
@@ -254,6 +256,12 @@ ZoneServer::ZoneServer(int argc, char* argv[])
     mCharacterLoginHandler = new CharacterLoginHandler(mDatabase, mMessageDispatch);
 
     mObjectControllerDispatch = new ObjectControllerDispatch(mDatabase,mMessageDispatch);
+
+	anh::IFF::IFFReader iffFile;
+	 if (iffFile.load("terrain/" + mZoneName + ".trn"))
+		 LOG(INFO) << "Terrain file for " << mZoneName << " successfully loaded.";
+	 else
+		 LOG(ERROR) << "Terrain file for " << mZoneName << " failed to load.";
 }
 
 //======================================================================================================================

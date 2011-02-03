@@ -99,7 +99,7 @@ glm::vec3 NPCObject::getRandomPosition(const glm::vec3& currentPos, int32 offset
     /*
     if (Heightmap::isHeightmapCacheAvaliable())
     {
-    	v.y = Heightmap::Instance()->getCachedHeightAt2DPosition(v.x, v.z);
+    	v.y = Heightmap::Instance()->getCachedHeight(v.x, v.z);
     }
     else
     {
