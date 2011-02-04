@@ -257,11 +257,7 @@ ZoneServer::ZoneServer(int argc, char* argv[])
 
     mObjectControllerDispatch = new ObjectControllerDispatch(mDatabase,mMessageDispatch);
 
-	anh::IFF::IFFReader iffFile;
-	 if (iffFile.load("terrain/" + mZoneName + ".trn"))
-		 LOG(INFO) << "Terrain file for " << mZoneName << " successfully loaded.";
-	 else
-		 LOG(ERROR) << "Terrain file for " << mZoneName << " failed to load.";
+	mTerrainManager = new TerrainManager(mZoneName);
 }
 
 //======================================================================================================================

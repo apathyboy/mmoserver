@@ -32,7 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "Utils/bstring.h"
 #include "Utils/typedefs.h"
 #include "Common/Server.h"
-#include "anh/IFF/IFFReader.h"
+#include "TerrainManager.h"
 
 //======================================================================================================================
 
@@ -49,6 +49,8 @@ class Database;
 class MessageDispatch;
 class CharacterLoginHandler;
 class ObjectControllerDispatch;
+
+class TerrainManager;
 
 // @note: for initial testing the new "Service" classes will be manually set up here
 // in the future we should have a map container of string to services that they are
@@ -109,6 +111,8 @@ private:
     MessageDispatch*              mMessageDispatch;
     CharacterLoginHandler*        mCharacterLoginHandler;
     ObjectControllerDispatch*     mObjectControllerDispatch;
+
+	TerrainManager*				  mTerrainManager;
 
     std::unique_ptr<zone::HamService>   ham_service_;
 };
