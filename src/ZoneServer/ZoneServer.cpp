@@ -51,6 +51,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "SkillManager.h"
 #include "StateManager.h"
 #include "StructureManager.h"
+#include "TerrainManager.h"
 #include "TradeManager.h"
 #include "UIManager.h"
 #include "WorldManager.h"
