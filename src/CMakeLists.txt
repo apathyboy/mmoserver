@@ -6,6 +6,8 @@ add_subdirectory(anh)
 
 # executables
 
+add_subdirectory(login)
+
 if (NOT DISABLE_LEGACY)
     ADD_SUBDIRECTORY(Utils)
     ADD_SUBDIRECTORY(Common)
