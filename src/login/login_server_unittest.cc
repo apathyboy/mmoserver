@@ -25,24 +25,38 @@
 
 #include "login/login_server.h"
 
-using anh::event_dispatcher::EventDispatcherInterface;
-using anh::event_dispatcher::EventType;
-using anh::event_dispatcher::MockEventDispatcher;
-using login::LoginServer;
-using std::shared_ptr;
+using namespace anh::event_dispatcher;
+using namespace std;
+using namespace testing;
 
-class LoginServerTest : public testing::Test {
+using login::LoginServer;
+
+class LoginServerTest : public Test {
 protected:
     shared_ptr<MockEventDispatcher> buildMockEventDispatcher() {
-        shared_ptr<MockEventDispatcher> mock_dispatcher(new testing::NiceMock<MockEventDispatcher>());
+        shared_ptr<MockEventDispatcher> mock_dispatcher(new NiceMock<MockEventDispatcher>());
+        
+        EXPECT_CALL(*mock_dispatcher, subscribe(_, _))
+            .WillRepeatedly(Return(true));
+
         return mock_dispatcher;
     }
 };
 
-/// This test verifies that the login server listens for LoginClientId messages.
-TEST_F(LoginServerTest, ListensForLoginClientIdMessages) {
+/// This test verifies that the login server listens for LoginClientId events.
+TEST_F(LoginServerTest, ListensForLoginClientIdEvents) {
     shared_ptr<MockEventDispatcher> mock_dispatcher = buildMockEventDispatcher();
-    EXPECT_CALL(*mock_dispatcher, subscribe(EventType("LoginClientIdEvent"), testing::_));
+    EXPECT_CALL(*mock_dispatcher, subscribe(EventType("LoginClientId"), _))
+        .WillOnce(Return(true));
     
     LoginServer login_server(mock_dispatcher);	
+}
+
+/// This test verifies that the login server lists for DeleteCharacterMessage events.
+TEST_F(LoginServerTest, ListensForDeleteCharacterMessageEvents) {
+    shared_ptr<MockEventDispatcher> mock_dispatcher = buildMockEventDispatcher();
+    EXPECT_CALL(*mock_dispatcher, subscribe(EventType("DeleteCharacterMessage"), _))
+        .WillOnce(Return(true));
+
+    LoginServer login_server(mock_dispatcher);
 }

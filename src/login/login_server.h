@@ -32,6 +32,7 @@ public:
 
 private:
     bool handleLoginClientId(std::shared_ptr<anh::event_dispatcher::EventInterface> incoming_event);
+    bool handleDeleteCharacterMessage(std::shared_ptr<anh::event_dispatcher::EventInterface> incoming_event);
 
     std::shared_ptr<anh::event_dispatcher::EventDispatcherInterface> event_dispatcher_;
 };

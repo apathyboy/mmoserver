@@ -19,23 +19,27 @@
 
 #include "login/login_server.h"
 
-using anh::event_dispatcher::EventDispatcherInterface;
-using anh::event_dispatcher::EventInterface;
-using anh::event_dispatcher::EventListenerType;
-using anh::event_dispatcher::EventType;
+using namespace anh::event_dispatcher;
+using namespace std;
+
 using login::LoginServer;
-using std::bind;
-using std::make_pair;
-using std::shared_ptr;
 
 LoginServer::LoginServer(std::shared_ptr<anh::event_dispatcher::EventDispatcherInterface> event_dispatcher) 
     : event_dispatcher_(event_dispatcher) 
 {
-    event_dispatcher_->subscribe(EventType("LoginClientIdEvent"), make_pair(
-        EventListenerType("LoginClientIdEventListener"),
+    event_dispatcher_->subscribe(EventType("LoginClientId"), make_pair(
+        EventListenerType("LoginClientIdListener"),
+        bind(&LoginServer::handleLoginClientId, this, std::placeholders::_1)));
+
+    event_dispatcher_->subscribe(EventType("DeleteCharacterMessage"), make_pair(
+        EventListenerType("DeleteCharacterMessageListener"),
         bind(&LoginServer::handleLoginClientId, this, std::placeholders::_1)));
 }
 
 bool LoginServer::handleLoginClientId(shared_ptr<EventInterface> incoming_event) {
+    return false;
+}
+
+bool LoginServer::handleDeleteCharacterMessage(shared_ptr<EventInterface> incoming_event) {
     return false;
 }
