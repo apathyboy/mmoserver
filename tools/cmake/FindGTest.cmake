@@ -96,64 +96,79 @@ function(_gtest_append_debugs _endvar _library)
     set(${_endvar} ${_output} PARENT_SCOPE)
 endfunction()
 
-function(_gtest_find_library _name)
-    find_library(${_name}
-        NAMES ${ARGN}
-        HINTS
-            $ENV{GTEST_ROOT}
-            ${GTEST_ROOT}
-        PATH_SUFFIXES ${_gtest_libpath_suffixes}
-    )
-    mark_as_advanced(${_name})
-endfunction()
-
-#
-
-if(NOT DEFINED GTEST_MSVC_SEARCH)
-    set(GTEST_MSVC_SEARCH MD)
-endif()
-
-set(_gtest_libpath_suffixes lib)
-if(MSVC)
-    if(GTEST_MSVC_SEARCH STREQUAL "MD")
-        list(APPEND _gtest_libpath_suffixes
-            msvc/gtest-md/Debug
-            msvc/gtest-md/Release)
-    elseif(GTEST_MSVC_SEARCH STREQUAL "MT")
-        list(APPEND _gtest_libpath_suffixes
-            msvc/gtest/Debug
-            msvc/gtest/Release)
-    endif()
-endif()
-
-
-find_path(GTEST_INCLUDE_DIR gtest/gtest.h
+FIND_PATH(GTEST_INCLUDE_DIR gtest/gtest.h
+	PATH
+	    $ENV{GTEST_ROOT}
+	    ${GTEST_ROOT}
     HINTS
         $ENV{GTEST_ROOT}/include
         ${GTEST_ROOT}/include
 )
-mark_as_advanced(GTEST_INCLUDE_DIR)
+MARK_AS_ADVANCED(GTEST_INCLUDE_DIR)
 
-if(MSVC AND GTEST_MSVC_SEARCH STREQUAL "MD")
-    # The provided /MD project files for Google Test add -md suffixes to the
-    # library names.
-    _gtest_find_library(GTEST_LIBRARY            gtest-md  gtest)
-    _gtest_find_library(GTEST_LIBRARY_DEBUG      gtest-mdd gtestd)
-    _gtest_find_library(GTEST_MAIN_LIBRARY       gtest_main-md  gtest_main)
-    _gtest_find_library(GTEST_MAIN_LIBRARY_DEBUG gtest_main-mdd gtest_maind)
-else()
-    _gtest_find_library(GTEST_LIBRARY            gtest)
-    _gtest_find_library(GTEST_LIBRARY_DEBUG      gtestd)
-    _gtest_find_library(GTEST_MAIN_LIBRARY       gtest_main)
-    _gtest_find_library(GTEST_MAIN_LIBRARY_DEBUG gtest_maind)
-endif()
+FIND_LIBRARY(GTEST_LIBRARY_DEBUG
+    NAMES gtest gtest.lib
+    PATH
+        $ENV{GTEST_ROOT}
+        ${GTEST_ROOT}
+    HINTS
+	    $ENV{GTEST_ROOT}/lib
+	    ${GTEST_ROOT}/lib
+        $ENV{GTEST_ROOT}/Debug
+        ${GTEST_ROOT}/Debug
+)
 
-include(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(GTest DEFAULT_MSG GTEST_LIBRARY GTEST_INCLUDE_DIR GTEST_MAIN_LIBRARY)
+FIND_LIBRARY(GTEST_LIBRARY
+    NAMES gtest gtest.lib
+    PATH
+        $ENV{GTEST_ROOT}
+        ${GTEST_ROOT}
+    HINTS
+		$ENV{GTEST_ROOT}/lib
+	    ${GTEST_ROOT}/lib
+        $ENV{GTEST_ROOT}/Release
+        ${GTEST_ROOT}/Release
+)
 
-if(GTEST_FOUND)
+FIND_LIBRARY(GTEST_MAIN_LIBRARY_DEBUG
+    NAMES gtest_main gtest_main.lib
+    PATH
+        $ENV{GTEST_ROOT}
+        ${GTEST_ROOT}
+    HINTS
+	    $ENV{GTEST_ROOT}/lib
+	    ${GTEST_ROOT}/lib
+        $ENV{GTEST_ROOT}/Debug
+        ${GTEST_ROOT}/Debug
+)
+
+FIND_LIBRARY(GTEST_MAIN_LIBRARY
+    NAMES gtest_main gtest_main.lib
+    PATH
+        $ENV{GTEST_ROOT}
+        ${GTEST_ROOT}
+    HINTS
+		$ENV{GTEST_ROOT}/lib
+	    ${GTEST_ROOT}/lib
+        $ENV{GTEST_ROOT}/Release
+        ${GTEST_ROOT}/Release
+)
+        
+IF(GTEST_INCLUDE_DIR AND GTEST_LIBRARY_DEBUG AND GTEST_LIBRARY AND GTEST_MAIN_LIBRARY_DEBUG AND GTEST_MAIN_LIBRARY)
+    SET(GTest_FOUND TRUE)
+ENDIF()
+
+IF(GTest_FOUND)
+    IF (NOT GTest_FIND_QUIETLY)
+        MESSAGE(STATUS "Found GTest")
+    ENDIF()
+    
     set(GTEST_INCLUDE_DIRS ${GTEST_INCLUDE_DIR})
     _gtest_append_debugs(GTEST_LIBRARIES      GTEST_LIBRARY)
     _gtest_append_debugs(GTEST_MAIN_LIBRARIES GTEST_MAIN_LIBRARY)
     set(GTEST_BOTH_LIBRARIES ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
-endif()
+ELSE()
+    IF (GTest_FIND_REQUIRED)
+        MESSAGE(FATAL_ERROR "Could not find GTest")
+    ENDIF()
+ENDIF()
