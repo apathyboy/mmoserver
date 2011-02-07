@@ -132,7 +132,7 @@ void EventDispatcher::unsubscribe(const EventListenerType& listener_type) {
     });
 }
 
-bool EventDispatcher::trigger(std::shared_ptr<IEvent> incoming_event) {
+bool EventDispatcher::trigger(std::shared_ptr<EventInterface> incoming_event) {
     const EventType& event_type = incoming_event->type();
     if (!validateEventType_(event_type)) {
         assert(false && "Event was triggered before its type was registered");
@@ -163,7 +163,7 @@ bool EventDispatcher::trigger(std::shared_ptr<IEvent> incoming_event) {
     return processed;
 }
 
-bool EventDispatcher::trigger(std::shared_ptr<IEvent> incoming_event, PostTriggerCallback callback) {
+bool EventDispatcher::trigger(std::shared_ptr<EventInterface> incoming_event, PostTriggerCallback callback) {
     bool processed = trigger(incoming_event);
 
     callback(incoming_event, processed);
@@ -172,7 +172,7 @@ bool EventDispatcher::trigger(std::shared_ptr<IEvent> incoming_event, PostTrigge
 }
 
 
-void EventDispatcher::triggerWhen(std::shared_ptr<IEvent> incoming_event, TriggerCondition condition) {
+void EventDispatcher::triggerWhen(std::shared_ptr<EventInterface> incoming_event, TriggerCondition condition) {
     // Do a few quick sanity checks in debug mode to ensure our queue cycling is always on track.
     assert(active_queue_ >= 0);
     assert(active_queue_ < NUM_QUEUES);
@@ -198,7 +198,7 @@ void EventDispatcher::triggerWhen(std::shared_ptr<IEvent> incoming_event, Trigge
 }
 
 
-void EventDispatcher::triggerWhen(std::shared_ptr<IEvent> incoming_event, TriggerCondition condition, PostTriggerCallback callback) {
+void EventDispatcher::triggerWhen(std::shared_ptr<EventInterface> incoming_event, TriggerCondition condition, PostTriggerCallback callback) {
     // Do a few quick sanity checks in debug mode to ensure our queue cycling is always on track.
     assert(active_queue_ >= 0);
     assert(active_queue_ < NUM_QUEUES);
@@ -223,7 +223,7 @@ void EventDispatcher::triggerWhen(std::shared_ptr<IEvent> incoming_event, Trigge
     event_queues_[placement_queue].push(make_tuple(incoming_event, condition, callback));
 }
 
-bool EventDispatcher::triggerAsync(std::shared_ptr<IEvent> incoming_event) {
+bool EventDispatcher::triggerAsync(std::shared_ptr<EventInterface> incoming_event) {
     // Do a few quick sanity checks in debug mode to ensure our queue cycling is always on track.
     assert(active_queue_ >= 0);
     assert(active_queue_ < NUM_QUEUES);
@@ -251,7 +251,7 @@ bool EventDispatcher::triggerAsync(std::shared_ptr<IEvent> incoming_event) {
 }
 
 
-bool EventDispatcher::triggerAsync(std::shared_ptr<IEvent> incoming_event, PostTriggerCallback callback) {
+bool EventDispatcher::triggerAsync(std::shared_ptr<EventInterface> incoming_event, PostTriggerCallback callback) {
     // Do a few quick sanity checks in debug mode to ensure our queue cycling is always on track.
     assert(active_queue_ >= 0);
     assert(active_queue_ < NUM_QUEUES);

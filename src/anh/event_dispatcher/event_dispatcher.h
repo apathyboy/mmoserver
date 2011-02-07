@@ -47,14 +47,14 @@ public:
     void unsubscribe(const EventType& event_type, const EventListenerType& listener_type);
     void unsubscribe(const EventListenerType& listener_type);
 
-    bool trigger(std::shared_ptr<IEvent> incoming_event);
-    bool trigger(std::shared_ptr<IEvent> incoming_event, PostTriggerCallback callback);
+    bool trigger(std::shared_ptr<EventInterface> incoming_event);
+    bool trigger(std::shared_ptr<EventInterface> incoming_event, PostTriggerCallback callback);
     
-    void triggerWhen(std::shared_ptr<IEvent> incoming_event, TriggerCondition condition);
-    void triggerWhen(std::shared_ptr<IEvent> incoming_event, TriggerCondition condition, PostTriggerCallback callback);
+    void triggerWhen(std::shared_ptr<EventInterface> incoming_event, TriggerCondition condition);
+    void triggerWhen(std::shared_ptr<EventInterface> incoming_event, TriggerCondition condition, PostTriggerCallback callback);
 
-    bool triggerAsync(std::shared_ptr<IEvent> incoming_event);
-    bool triggerAsync(std::shared_ptr<IEvent> incoming_event, PostTriggerCallback callback);
+    bool triggerAsync(std::shared_ptr<EventInterface> incoming_event);
+    bool triggerAsync(std::shared_ptr<EventInterface> incoming_event, PostTriggerCallback callback);
 
     bool abort(const EventType& event_type, bool all_of_type = false);
 

@@ -38,7 +38,7 @@
 namespace anh {
 namespace event_dispatcher {
     
-typedef std::function<bool (std::shared_ptr<IEvent>)> EventListenerCallback;
+typedef std::function<bool (std::shared_ptr<EventInterface>)> EventListenerCallback;
 typedef anh::HashString EventListenerType;
 typedef std::pair<EventListenerType, EventListenerCallback> EventListener;
 
@@ -48,9 +48,9 @@ typedef std::map<EventType, EventListenerList> EventListenerMap;
 typedef std::set<EventType> EventTypeSet;
 
 typedef std::function<bool (uint64_t current_time_ms)> TriggerCondition;
-typedef std::function<void (std::shared_ptr<IEvent>, bool)> PostTriggerCallback;
+typedef std::function<void (std::shared_ptr<EventInterface>, bool)> PostTriggerCallback;
 
-typedef std::tuple<std::shared_ptr<IEvent>, boost::optional<TriggerCondition>, boost::optional<PostTriggerCallback>> EventQueueItem;
+typedef std::tuple<std::shared_ptr<EventInterface>, boost::optional<TriggerCondition>, boost::optional<PostTriggerCallback>> EventQueueItem;
 typedef tbb::concurrent_queue<EventQueueItem> EventQueue;
 typedef std::deque<EventQueue> EventQueueList;
 
@@ -67,14 +67,14 @@ public:
     virtual void unsubscribe(const EventType& event_type, const EventListenerType& listener_type) = 0;
     virtual void unsubscribe(const EventListenerType& listener_type) = 0;
 
-    virtual bool trigger(std::shared_ptr<IEvent> incoming_event) = 0;
-    virtual bool trigger(std::shared_ptr<IEvent> incoming_event, PostTriggerCallback callback) = 0;
+    virtual bool trigger(std::shared_ptr<EventInterface> incoming_event) = 0;
+    virtual bool trigger(std::shared_ptr<EventInterface> incoming_event, PostTriggerCallback callback) = 0;
     
-    virtual void triggerWhen(std::shared_ptr<IEvent> incoming_event, TriggerCondition condition) = 0;
-    virtual void triggerWhen(std::shared_ptr<IEvent> incoming_event, TriggerCondition condition, PostTriggerCallback callback) = 0;
+    virtual void triggerWhen(std::shared_ptr<EventInterface> incoming_event, TriggerCondition condition) = 0;
+    virtual void triggerWhen(std::shared_ptr<EventInterface> incoming_event, TriggerCondition condition, PostTriggerCallback callback) = 0;
 
-    virtual bool triggerAsync(std::shared_ptr<IEvent> incoming_event) = 0;
-    virtual bool triggerAsync(std::shared_ptr<IEvent> incoming_event, PostTriggerCallback callback) = 0;
+    virtual bool triggerAsync(std::shared_ptr<EventInterface> incoming_event) = 0;
+    virtual bool triggerAsync(std::shared_ptr<EventInterface> incoming_event, PostTriggerCallback callback) = 0;
 
     virtual bool abort(const EventType& event_type, bool all_of_type = false) = 0;
 
