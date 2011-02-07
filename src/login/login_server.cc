@@ -27,13 +27,13 @@ using login::LoginServer;
 LoginServer::LoginServer(std::shared_ptr<anh::event_dispatcher::EventDispatcherInterface> event_dispatcher) 
     : event_dispatcher_(event_dispatcher) 
 {
-    event_dispatcher_->subscribe(EventType("LoginClientId"), make_pair(
-        EventListenerType("LoginClientIdListener"),
-        bind(&LoginServer::handleLoginClientId, this, std::placeholders::_1)));
+    event_dispatcher_->subscribe(
+        "LoginClientId", 
+        bind(&LoginServer::handleLoginClientId, this, std::placeholders::_1));
 
-    event_dispatcher_->subscribe(EventType("DeleteCharacterMessage"), make_pair(
-        EventListenerType("DeleteCharacterMessageListener"),
-        bind(&LoginServer::handleLoginClientId, this, std::placeholders::_1)));
+    event_dispatcher_->subscribe(
+        "DeleteCharacterMessage",
+        bind(&LoginServer::handleLoginClientId, this, std::placeholders::_1));
 }
 
 bool LoginServer::handleLoginClientId(shared_ptr<EventInterface> incoming_event) {

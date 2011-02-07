@@ -40,10 +40,8 @@ namespace anh {
 namespace event_dispatcher {
     
 typedef std::function<bool (std::shared_ptr<EventInterface>)> EventListenerCallback;
-typedef anh::HashString EventListenerType;
-typedef std::pair<EventListenerType, EventListenerCallback> EventListener;
 
-
+typedef std::pair<uint64_t, EventListenerCallback> EventListener;
 typedef std::list<EventListener> EventListenerList;
 typedef std::map<EventType, EventListenerList> EventListenerMap;
 typedef std::set<EventType> EventTypeSet;
@@ -64,9 +62,9 @@ public:
 public:
     virtual ~EventDispatcherInterface() {}
     
-    virtual bool subscribe(const EventType& event_type, EventListener listener) = 0;
-    virtual void unsubscribe(const EventType& event_type, const EventListenerType& listener_type) = 0;
-    virtual void unsubscribe(const EventListenerType& listener_type) = 0;
+    virtual uint64_t subscribe(const EventType& event_type, EventListenerCallback listener) = 0;
+    //virtual void unsubscribe(const EventType& event_type, const EventListenerType& listener_type) = 0;
+    //virtual void unsubscribe(const EventListenerType& listener_type) = 0;
 
     virtual bool trigger(std::shared_ptr<EventInterface> incoming_event) = 0;
     virtual bool trigger(std::shared_ptr<EventInterface> incoming_event, PostTriggerCallback callback) = 0;

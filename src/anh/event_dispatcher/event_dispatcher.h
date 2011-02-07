@@ -20,6 +20,8 @@
 #ifndef LIBANH_EVENT_DISPATCHER_EVENT_DISPATCHER_H_
 #define LIBANH_EVENT_DISPATCHER_EVENT_DISPATCHER_H_
 
+#include <tbb/atomic.h>
+
 #include "anh/event_dispatcher/basic_event.h"
 #include "anh/event_dispatcher/event_dispatcher_interface.h"
 
@@ -36,6 +38,8 @@ public:
     EventDispatcher();
     ~EventDispatcher();
 
+    uint64_t subscribe(const EventType& event_type, EventListenerCallback listener);
+
     bool hasListeners(const EventType& event_type) const;
     bool hasRegisteredEventType(const EventType& event_type) const;
     bool hasEvents() const;
@@ -43,9 +47,8 @@ public:
     bool registerEventType(EventType event_type);
     EventTypeSet registered_event_types() const;
 
-    bool subscribe(const EventType& event_type, EventListener listener);
-    void unsubscribe(const EventType& event_type, const EventListenerType& listener_type);
-    void unsubscribe(const EventListenerType& listener_type);
+    void unsubscribe(const EventType& event_type, uint64_t listener_id);
+    void unsubscribe(const EventType& event_type);
 
     bool trigger(std::shared_ptr<EventInterface> incoming_event);
     bool trigger(std::shared_ptr<EventInterface> incoming_event, PostTriggerCallback callback);
@@ -67,6 +70,8 @@ private:
     EventTypeSet registered_event_types_;
     EventListenerMap event_listeners_;
     EventQueueList event_queues_;
+
+    tbb::atomic<uint64_t> next_event_listener_id_;
 
     int active_queue_;
 };

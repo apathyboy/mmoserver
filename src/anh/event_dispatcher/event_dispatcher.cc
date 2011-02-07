@@ -31,10 +31,44 @@ using namespace std;
 EventDispatcher::EventDispatcher()
     : event_queues_(NUM_QUEUES)
     , active_queue_(0)
-{}
+{
+    next_event_listener_id_.fetch_and_store(1);
+}
 
 EventDispatcher::~EventDispatcher() {
     active_queue_ = 0;
+}
+
+
+uint64_t EventDispatcher::subscribe(const EventType& event_type, EventListenerCallback listener) {
+    if (!validateEventType_(event_type)) {
+        return 0;
+    }
+    
+    if (!hasRegisteredEventType(event_type)) {
+        registerEventType(event_type);
+    }
+
+    auto map_it = event_listeners_.find(event_type);
+    if (map_it == event_listeners_.end()) {
+        auto insert_result = event_listeners_.insert(make_pair(event_type, EventListenerList()));
+
+        // Check if there was an insertion failure
+        if (insert_result.second == false) {
+            return 0;
+        }
+
+        // Cache the iterator and verify we didn't somehow create an empty map.
+        if ((map_it = insert_result.first) == event_listeners_.end()) {
+            return 0;
+        }
+    }
+
+    EventListenerList& listener_list = (*map_it).second;    
+    uint64_t next_listener_id = next_event_listener_id_.fetch_and_increment();
+    listener_list.push_back(make_pair(next_listener_id, listener));
+
+    return next_listener_id;
 }
 
 bool EventDispatcher::hasListeners(const EventType& event_type) const {
@@ -75,43 +109,8 @@ EventTypeSet EventDispatcher::registered_event_types() const {
     return registered_event_types_;
 }
 
-bool EventDispatcher::subscribe(const EventType& event_type, EventListener listener) {
-    if (!validateEventType_(event_type)) {
-        return false;
-    }
 
-    auto map_it = event_listeners_.find(event_type);
-    if (map_it == event_listeners_.end()) {
-        auto insert_result = event_listeners_.insert(make_pair(event_type, EventListenerList()));
-
-        // Check if there was an insertion failure
-        if (insert_result.second == false) {
-            return false;
-        }
-
-        // Cache the iterator and verify we didn't somehow create an empty map.
-        if ((map_it = insert_result.first) == event_listeners_.end()) {
-            return false;
-        }
-    }
-
-    EventListenerList& listener_list = (*map_it).second;    
-
-    // Look for the listener in the list before adding.
-    auto find_it = find_if(listener_list.begin(), listener_list.end(), [&listener] (const EventListener& list_listener) {
-        return list_listener.first == listener.first;
-    });
-
-    if (find_it != listener_list.end()) {
-        return false;
-    }
-
-    listener_list.push_back(listener);
-
-    return true;
-}
-
-void EventDispatcher::unsubscribe(const EventType& event_type, const EventListenerType& listener_type) {    
+void EventDispatcher::unsubscribe(const EventType& event_type, uint64_t listener_id) {
     auto map_it = event_listeners_.find(event_type);
     if (map_it == event_listeners_.end()) {
         return;
@@ -119,17 +118,20 @@ void EventDispatcher::unsubscribe(const EventType& event_type, const EventListen
 
     EventListenerList& listener_list = (*map_it).second;
 
-    auto remove_it = remove_if(listener_list.begin(), listener_list.end(), [&listener_type] (const EventListener& list_listener) {
-        return list_listener.first == listener_type;
+    auto remove_it = remove_if(listener_list.begin(), listener_list.end(), [&listener_id] (const EventListener& list_listener) {
+        return list_listener.first == listener_id;
     });
 
     listener_list.erase(remove_it, listener_list.end());
 }
 
-void EventDispatcher::unsubscribe(const EventListenerType& listener_type) {
-    std::for_each(registered_event_types_.begin(), registered_event_types_.end(), [this, &listener_type] (const EventType& event_type) {        
-        unsubscribe(event_type, listener_type);
-    });
+void EventDispatcher::unsubscribe(const EventType& event_type) {
+    auto map_it = event_listeners_.find(event_type);
+    if (map_it == event_listeners_.end()) {
+        return;
+    }
+
+    (*map_it).second.clear();
 }
 
 bool EventDispatcher::trigger(std::shared_ptr<EventInterface> incoming_event) {
@@ -390,12 +392,7 @@ bool EventDispatcher::validateEventType_(const EventType& event_type) const {
     if (! event_type.ident_string().length()) {
         return false;
     }
-
-    auto type_it = registered_event_types_.find(event_type); 
-    if (type_it == registered_event_types_.end()) {
-        return false;
-    }
-
+    
     return true;
 }
 
