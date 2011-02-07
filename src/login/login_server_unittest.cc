@@ -31,11 +31,17 @@ using anh::event_dispatcher::MockEventDispatcher;
 using login::LoginServer;
 using std::shared_ptr;
 
-class LoginServerTest : public testing::Test {};
+class LoginServerTest : public testing::Test {
+protected:
+    shared_ptr<MockEventDispatcher> buildMockEventDispatcher() {
+        shared_ptr<MockEventDispatcher> mock_dispatcher(new testing::NiceMock<MockEventDispatcher>());
+        return mock_dispatcher;
+    }
+};
 
 /// This test verifies that the login server listens for LoginClientId messages.
 TEST_F(LoginServerTest, ListensForLoginClientIdMessages) {
-    shared_ptr<MockEventDispatcher> mock_dispatcher(new MockEventDispatcher);
+    shared_ptr<MockEventDispatcher> mock_dispatcher = buildMockEventDispatcher();
     EXPECT_CALL(*mock_dispatcher, subscribe(EventType("LoginClientIdEvent"), testing::_));
     
     LoginServer login_server(mock_dispatcher);	
