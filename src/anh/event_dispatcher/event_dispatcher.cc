@@ -28,8 +28,6 @@ using namespace anh::event_dispatcher;
 using namespace boost::posix_time;
 using namespace std;
 
-IEventDispatcher::~IEventDispatcher() {}
-
 EventDispatcher::EventDispatcher()
     : event_queues_(NUM_QUEUES)
     , active_queue_(0)
