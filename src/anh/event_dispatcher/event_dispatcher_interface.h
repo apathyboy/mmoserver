@@ -34,6 +34,7 @@
 #include <tbb/concurrent_queue.h>
 
 #include "anh/hash_string.h"
+#include "anh/event_dispatcher/event_interface.h"
 
 namespace anh {
 namespace event_dispatcher {
