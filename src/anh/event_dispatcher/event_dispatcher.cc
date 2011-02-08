@@ -42,7 +42,8 @@ EventDispatcher::~EventDispatcher() {
 
 uint64_t EventDispatcher::subscribe(const EventType& event_type, EventListenerCallback listener) {
     if (!validateEventType_(event_type)) {
-        return 0;
+        throw anh::event_dispatcher::InvalidEventType(
+            "Invalid event type specified");
     }
     
     if (!hasRegisteredEventType(event_type)) {

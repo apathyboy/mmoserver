@@ -126,6 +126,7 @@ TEST(EventDispatcherTest, TriggeringEventNotifiesListeners) {
     bool notified = false;
     
     auto my_listener = [&notified] (shared_ptr<EventInterface> incoming_event) 
+        -> bool
     {
         notified = true;
         return true;
@@ -359,4 +360,18 @@ TEST(EventDispatcherTest, TriggeringEventSetsTimestamp) {
     EXPECT_TRUE(dispatcher.triggerAsync(my_event2));
     EXPECT_GT(my_event1->timestamp(), 0);
     EXPECT_GT(my_event2->timestamp(), 0);
+}
+
+/// Subscribing with an invalid event type throws exception
+TEST(EventDispatcherTest, SubscribingWithInvalidEventTypeThrows) {
+    
+    EventDispatcher dispatcher;
+
+    auto my_listener = [] (shared_ptr<EventInterface> incoming_event) {
+        return true;
+    };
+    
+    ASSERT_THROW(
+        dispatcher.subscribe("", my_listener), 
+        anh::event_dispatcher::InvalidEventType);
 }
