@@ -56,12 +56,12 @@ uint64_t EventDispatcher::subscribe(const EventType& event_type, EventListenerCa
 
         // Check if there was an insertion failure
         if (insert_result.second == false) {
-            return 0;
+            throw std::runtime_error("Insertion failure");
         }
 
         // Cache the iterator and verify we didn't somehow create an empty map.
         if ((map_it = insert_result.first) == event_listeners_.end()) {
-            return 0;
+            throw std::runtime_error("Insertion created an empty map");
         }
     }
 
