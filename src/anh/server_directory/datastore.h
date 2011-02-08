@@ -21,14 +21,14 @@
 #define ANH_SERVER_DIRECTORY_DATASTORE_H_
 
 #include <cstdint>
+
 #include <map>
 #include <memory>
 #include <string>
 
 #include <boost/noncopyable.hpp>
 
-#include "anh/server_directory/cluster.h"
-#include "anh/server_directory/process.h"
+#include "anh/server_directory/datastore_interface.h"
 
 namespace sql {
     class Connection; 
@@ -37,26 +37,8 @@ namespace sql {
 namespace anh {
 namespace server_directory {
 
-class DatastoreInterface {
-public:
-    virtual ~DatastoreInterface() {}
-
-    virtual std::shared_ptr<Cluster> findClusterByName(const std::string& name) const = 0;
-    virtual std::shared_ptr<Cluster> createCluster(const std::string& name, const std::string& version) const = 0;
-    virtual std::shared_ptr<Process> createProcess(std::shared_ptr<Cluster> cluster, const std::string& name, const std::string& type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping_port) const = 0;
-
-    virtual std::string getClusterTimestamp(std::shared_ptr<Cluster> cluster) const = 0;
-
-    virtual void saveProcess(std::shared_ptr<Process> process) const = 0;
-
-    virtual std::shared_ptr<Cluster> findClusterById(uint32_t id) const = 0;
-
-    virtual bool deleteProcessById(uint32_t id) const = 0;
-
-    virtual std::map<uint32_t, std::shared_ptr<Cluster>> getClusterMap() const = 0;
-    virtual std::map<uint32_t, std::shared_ptr<Process>> getProcessMap(uint32_t cluster_id) const = 0;
-    virtual std::string prepareTimestampForStorage(const std::string& timestamp) const = 0;
-};
+class Cluster;
+class Process;
 
 class Datastore : public DatastoreInterface , boost::noncopyable {
 public:

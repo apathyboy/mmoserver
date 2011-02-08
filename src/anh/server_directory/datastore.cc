@@ -28,6 +28,8 @@
 #include <cppconn/resultset.h>
 
 #include "anh/memory.h"
+#include "anh/server_directory/cluster.h"
+#include "anh/server_directory/process.h"
 
 using namespace anh::server_directory;
 using namespace boost::posix_time;
