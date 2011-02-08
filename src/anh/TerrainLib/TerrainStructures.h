@@ -124,19 +124,25 @@ public:
 	unsigned char* fractal_label;
 
 	//MFRCFORM
-	int				unk1;		//seed ??
-	int				unk2;		//Bias type??
-	float			unk3;		//bias amount??
-	int				unk4;		//Gain type??
-	float			unk5;		//Gain amount??
-	unsigned int	unk6;		//Octave count??
-	float			unk7;		//Octave Parameters or something??
-	float			unk8;		//Amplitude??
-	float			unk9;		//Frequency X?
-	float			unk10;		//Frequency Y?
-	unsigned int	unk11;		//X offset??
-	unsigned int	unk12;		//y offset?
-	unsigned int	unk13;		//Use both?
+	int				seed_arg;			//seed ??
+	int				use_bias;			//Bias type??
+	float			bias;				//bias amount??
+	int				use_gain;			//Gain type??
+	float			gain;				//Gain amount??
+	unsigned int	octaves;			//Octave count??
+	float			octaves_arg;		//Octave Parameters or something??
+	float			amplitude;			//Amplitude??
+	float			freq_x;				//Frequency X?
+	float			freq_z;				//Frequency Y?
+	unsigned int	offset_x;			//X offset??
+	unsigned int	offset_z;			//y offset?
+	unsigned int	combination_type;	//Use both?
+
+	float			offset;				// Resulting offset from amplitude
+
+private:
+	void setSeed(int seed);				// Seed the random generator
+	void setAmplitude(void);			// Set the offset from the TRN file amplitude
 };
 
 class HEADER
@@ -147,7 +153,7 @@ public:
 	float map_width;
 	float chunk_width;
 	int   tiles_per_chunk;
-	int   header_type;
+	int   use_global_water_height;
 	float global_water_height;
 	float water_shader_size;
 	unsigned char* water_shader_name;

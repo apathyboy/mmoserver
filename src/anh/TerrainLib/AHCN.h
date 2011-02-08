@@ -1,10 +1,13 @@
-#include "Layer.h"
+#include "Height.h"
+#include "../../ZoneServer/TerrainManager.h"
 
-class AHCN : public TRNLib::LAYER
+class AHCN : public TRNLib::Height
 {
 public:
 	AHCN(unsigned char* data, unsigned int dataSize);
 
-	int   unk1;
-	float unk2;
+	int   transform_type;
+	float height;
+
+	float getBaseHeight(float x, float z, TerrainManager* tm);
 };

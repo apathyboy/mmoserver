@@ -1,5 +1,6 @@
 #include "Terrain.h"
 #include "Layer.h"
+#include "BPOL.h"
 
 using namespace TRNLib;
 using namespace IFFLib;
@@ -11,19 +12,19 @@ Trn::Trn(std::string trnFile)
 		IFFLib::IFF* mObject = new IFFLib::IFF();
 		IFF::retVal ret = mObject->readFile(trnFile);
 
-		//Load Basic Map Info
-		std::list<IFF::NODE*> ptats = mObject->mHeads[0]->searchTree("PTATFORM");
-	
-		std::list<IFF::NODE*>::iterator it = ptats.begin();
-		std::list<IFF::NODE*>::iterator end = ptats.end();
-		while(it != end)
-		{
-			_loadHeader((*it)->children.at(0)->data, (*it)->children.at(0)->size);
-			it++;
-		}
-
 		if(ret == IFF::READ_FILE_OK)
 		{
+			//Load Basic Map Info
+			std::list<IFF::NODE*> ptats = mObject->mHeads[0]->searchTree("PTATFORM");
+	
+			std::list<IFF::NODE*>::iterator it = ptats.begin();
+			std::list<IFF::NODE*>::iterator end = ptats.end();
+			while(it != end)
+			{
+				_loadHeader((*it)->children.at(0)->data, (*it)->children.at(0)->size);
+				it++;
+			}
+
 			//Load the Shader Families
 			for(unsigned int i=0; i < mObject->mHeads.size(); i++)
 			{
@@ -174,7 +175,7 @@ void Trn::_loadHeader(unsigned char* data, unsigned int dataSize)
 	//Read tiles_per_chunk;
 	memcpy(&header.tiles_per_chunk, &data[i], 4); i+=4;
 	//Read use_global_water_table;
-	memcpy(&header.header_type, &data[i], 4); i+=4;
+	memcpy(&header.use_global_water_height, &data[i], 4); i+=4;
 	//Read global_water_height;
 	memcpy(&header.global_water_height, &data[i], 4); i+=4;
 	//Read water_shader_size;
@@ -293,8 +294,22 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 			else
 			{
 				LAYER* temp = _loadLayer((*it)->children[0]);
-				if(temp)
-					result->children.push_back(temp);
+				temp->parent = result;
+
+				if (temp->type == LAYER_BREC || temp->type == LAYER_BCIR ||
+					temp->type == LAYER_BPLN)
+					result->boundaries.push_back((Boundary*)temp);
+				else if (temp->type == LAYER_BPOL)
+				{
+					result->boundaries.push_back((Boundary*)temp);
+					BPOL* boundary = reinterpret_cast<BPOL*>(temp);
+					if (boundary->use_water_height != 0)
+						waterBoundaries.push_back((Boundary*)temp);
+				}
+				else if (temp->type == LAYER_AHCN || temp->type == LAYER_AHFR)
+					result->height = temp;
+				else if(temp)
+					result->others.push_back(temp);
 				else
 					printf("Unknown Layer Found : %s\n", ((*it)->children[0]->name));
 			}

@@ -199,30 +199,55 @@ MFAM::MFAM(unsigned char* data, unsigned char* data2)
 	i=0;
 
 	//Second Part
-	//Read unk1;
-	memcpy(&unk1 , &data2[i], 4); i+=4;
-	//Read unk2;
-	memcpy(&unk2 , &data2[i], 4); i+=4;
-	//Read unk3;
-	memcpy(&unk3 , &data2[i], 4); i+=4;
-	//Read unk4;
-	memcpy(&unk4 , &data2[i], 4); i+=4;
-	//Read unk5;
-	memcpy(&unk5 , &data2[i], 4); i+=4;
-	//Read unk6;
-	memcpy(&unk6 , &data2[i], 8); i+=8;
-	//Read unk7;
-	//memcpy(&unk7 , &data2[i], 4); i+=4;
-	//Read unk8;
-	memcpy(&unk8 , &data2[i], 4); i+=4;
-	//Read unk9;
-	memcpy(&unk9 , &data2[i], 4); i+=4;
-	//Read unk10;
-	memcpy(&unk10, &data2[i], 4); i+=4;
-	//Read unk11;
-	memcpy(&unk11, &data2[i], 4); i+=4;
-	//Read unk12; //type unknown
-	memcpy(&unk12, &data2[i], 4); i+=4;
-	//Read unk13;
-	memcpy(&unk13, &data2[i], 4); i+=4;
+	//Read seed_arg;
+	memcpy(&seed_arg , &data2[i], 4); i+=4;
+	//Read use_bias;
+	memcpy(&use_bias , &data2[i], 4); i+=4;
+	//Read bias;
+	memcpy(&bias , &data2[i], 4); i+=4;
+	//Read use_gain;
+	memcpy(&use_gain , &data2[i], 4); i+=4;
+	//Read gain;
+	memcpy(&gain , &data2[i], 4); i+=4;
+	//Read octaves;
+	memcpy(&octaves , &data2[i], 8); i+=4;
+	//Read octaves_arg;
+	memcpy(&octaves_arg , &data2[i], 4); i+=4;
+	//Read amplitude_arg;
+	memcpy(&amplitude , &data2[i], 4); i+=4;
+	setAmplitude();
+	//Read freq_x;
+	memcpy(&freq_x, &data2[i], 4); i+=4;
+	//Read freq_z;
+	memcpy(&freq_z, &data2[i], 4); i+=4;
+	//Read offset_x; //type unknown
+	memcpy(&offset_x, &data2[i], 4); i+=4;
+	//Read offset_y;
+	memcpy(&offset_z, &data2[i], 4); i+=4;
+	//Read combination
+	memcpy(&combination_type, &data2[i], 4); i+=4;
+}
+
+void MFAM::setSeed(int seed)
+{
+	// Initialize Random
+}
+
+void MFAM::setAmplitude()
+{
+	offset = 0.0f;
+
+	float curr_amplitude = 0.0f;
+	float next_amplitude = 1.0f;
+
+	for (int i = 0; i < octaves; i++)
+	{
+		curr_amplitude = curr_amplitude + next_amplitude;
+		next_amplitude = next_amplitude * amplitude;
+	}
+
+	offset = curr_amplitude;
+
+	if (offset != 0)
+		offset = 1.0/offset;
 }

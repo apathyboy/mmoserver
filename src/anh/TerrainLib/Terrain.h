@@ -1,5 +1,6 @@
 #include "../IFFLib/IFF.h"
 #include "TerrainStructures.h"
+#include "Boundary.h"
 
 namespace TRNLib
 {
@@ -31,6 +32,8 @@ namespace TRNLib
 
 		FOOTER* getFooterData(){return &footer;}
 
+		std::vector<Boundary*>* getWaterBoundaries() { return &waterBoundaries; }
+
 	private:
 		void _loadHeader(unsigned char* data, unsigned int dataSize);
 		void _loadFooter(IFFLib::IFF::NODE* parentNode);
@@ -51,6 +54,9 @@ namespace TRNLib
 		std::vector<LAYER*> layers;
 
 		FOOTER footer;
+
+		// Water boundaries for easily determining bodies of water
+		std::vector<Boundary*> waterBoundaries;
 	};
 
 };

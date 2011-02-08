@@ -10,10 +10,10 @@ namespace TRNLib
 	class VERTEX
 	{
 	public:
-		VERTEX(float ix, float iy) { x = ix; y = iy;}
+		VERTEX(float ix, float iz) { x = ix; z = iz;}
 
 		float x;
-		float y;
+		float z;
 	};
 
 	enum LAYER_TYPE
@@ -57,6 +57,7 @@ namespace TRNLib
 		bool enabled;
 
 		unsigned char* customName;
+		LAYER* parent;
 	};
 
 	class CONTAINER_LAYER : public LAYER
@@ -75,8 +76,14 @@ namespace TRNLib
 		int unk3; //type unknown
 		int unk4;
 		unsigned char* description;
-	
+
+		std::vector<LAYER*> boundaries;
+		std::vector<LAYER*> others;
+
+		LAYER* height;
 		std::vector<LAYER*> children;
+
+		LAYER* getHeight(void);
 	};
 };
 

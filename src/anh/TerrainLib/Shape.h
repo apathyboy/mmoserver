@@ -12,7 +12,7 @@ Copyright (c) 2006 - 2010 The swgANH Team
 #ifndef ANH_MATHLIB_SHAPE_H
 #define ANH_MATHLIB_SHAPE_H
 
-#include "../glm/glm.hpp"
+#include "glm\glm.hpp"
 
 //=============================================================================
 

@@ -1,4 +1,5 @@
 #include "Layer.h"
+#include "../../ZoneServer/TerrainManager.h"
 
 //Boundries
 #include "BREC.h"
@@ -36,6 +37,10 @@
 #include "ACRF.h"
 #include "ACRH.h"
 #include "ASRP.h"
+
+// Math
+#include <cmath>
+#include <limits>
 
 using namespace TRNLib;
 using namespace IFFLib;
@@ -360,10 +365,15 @@ AHCN::AHCN(unsigned char* data, unsigned int dataSize)
 {
 	type = LAYER_AHCN;
 
-	memcpy(&unk1, &data[0], 4);
-	memcpy(&unk2, &data[4], 4);
+	memcpy(&transform_type, &data[0], 4);
+	memcpy(&height, &data[4], 4);
 
 	//printf("C: %d %f\n", unk1, unk2);
+}
+
+float AHCN::getBaseHeight(float x, float z, TerrainManager* tm)
+{
+	return height;
 }
 
 AHFR::AHFR(unsigned char* data, unsigned int dataSize)
@@ -371,10 +381,16 @@ AHFR::AHFR(unsigned char* data, unsigned int dataSize)
 	type = LAYER_AHFR;
 
 	memcpy(&fractal_id, &data[0], 4);
-	memcpy(&unk2, &data[4], 4);
-	memcpy(&unk3, &data[8], 4);
+	memcpy(&transform_type, &data[4], 4);
+	memcpy(&height, &data[8], 4);
 
 	//printf("F: %d %d %f\n", unk1, unk2, unk3);
+}
+
+float AHFR::getBaseHeight(float x, float z, TerrainManager* tm)
+{
+	TRNLib::MFAM* fractal = tm->getFractal(fractal_id);
+	return 0.0f;
 }
 
 FFRA::FFRA(unsigned char* data, unsigned int dataSize)
@@ -415,16 +431,48 @@ BREC::BREC(unsigned char* data, unsigned int dataSize)
 	type = LAYER_BREC;
 
 	memcpy(&x1, &data[0], 4);
-	memcpy(&y1, &data[4], 4);
+	memcpy(&z1, &data[4], 4);
 	
 	memcpy(&x2, &data[8], 4);
-	memcpy(&y2, &data[12], 4);
+	memcpy(&z2, &data[12], 4);
 
 	memcpy(&feather_type, &data[16], 4);
 	memcpy(&feather_amount, &data[20], 4);
 
 	//printf("==BREC==\nPOS1: (%f,%f)\nPOS2: (%f,%f)\nFeather Type: (%d)\nFeather Amount: (%f)\n", x1, y1, x2, y2, feather_type, feather_amount);
 
+}
+
+bool BREC::isContained(float x, float z)
+{
+	float max_x, max_z, min_x, min_z;
+
+	if (x1 < x2)
+	{
+		max_x = x2;
+		min_x = x1;
+	}
+	else
+	{
+		max_x = x1;
+		min_x = x2;
+	}
+
+	if (z1 < z2)
+	{
+		max_z = z2;
+		min_z = z1;
+	}
+	else
+	{
+		max_z = z1;
+		min_z = z2;
+	}
+
+	if (max_x >= x && min_x <= x && max_z >= z && min_z <= z)
+		return true;
+
+	return false;
 }
 
 BPOL::BPOL(unsigned char* data, unsigned int dataSize)
@@ -438,22 +486,73 @@ BPOL::BPOL(unsigned char* data, unsigned int dataSize)
 	for(unsigned int j = 0; j < sizeTemp; j++)
 	{
 		float tempX;
-		float tempY;
+		float tempZ;
 		memcpy(&tempX, &data[i], 4); i+=4;
-		memcpy(&tempY, &data[i], 4); i+=4;
+		memcpy(&tempZ, &data[i], 4); i+=4;
 
-		verts.push_back(new VERTEX(tempX, tempY));
+		verts.push_back(new VERTEX(tempX, tempZ));
 	}
 
 	memcpy(&feather_type, &data[i], 4); i+=4;
 	memcpy(&shore_smoothness, &data[i], 4); i+=4;
-	memcpy(&is_water, &data[i], 4); i+=4;
+	memcpy(&use_water_height, &data[i], 4); i+=4;
 	memcpy(&water_height, &data[i], 4); i+=4;
 	memcpy(&water_shader_size, &data[i], 4); i+=4;
 
 	unsigned int strLen = strlen(const_cast<const char*>((char*)&data[i])) + 1;
 	water_shader = new unsigned char[strLen];
 	memcpy(water_shader, &data[i], strLen); i+= strLen;
+}
+
+bool BPOL::isContained(float x, float z)
+{
+	int j;
+	bool odd_nodes = false;
+	float x1, x2;
+
+	for ( unsigned int i = 0; i < verts.size(); ++i )
+	{
+		j = (i+1) % verts.size();
+
+		if ( verts.at(i)->x < verts.at(j)->x)
+		{
+			x1 = verts.at(i)->x;
+			x2 = verts.at(j)->x;
+		} 
+		else 
+		{
+			x1 = verts.at(j)->x;
+			x2 = verts.at(i)->x;
+		}
+
+			/* First check if the ray is possible to cross the line */
+			if ( x > x1 && x <= x2 && ( z < verts.at(i)->z || z <= verts.at(j)->z ) ) {
+				static const float eps = 0.000001f;
+
+				/* Calculate the equation of the line */
+				float dx = verts.at(j)->x - verts.at(i)->x;
+				float dz = verts.at(j)->z - verts.at(i)->z;
+				float k;
+
+				if ( fabs(dx) < eps ){
+					k = std::numeric_limits<float>::infinity();
+				} else {
+					k = dz/dx;
+				}
+
+				float m = verts.at(i)->z - k * verts.at(i)->x;
+
+				/* Find if the ray crosses the line */
+				float z2 = k * x + m;
+				if ( z <= z2 )
+				{
+					odd_nodes=!odd_nodes;
+				}
+			}
+		}
+
+
+  return odd_nodes;
 }
 
 BPLN::BPLN(unsigned char* data, unsigned int dataSize)
@@ -479,18 +578,34 @@ BPLN::BPLN(unsigned char* data, unsigned int dataSize)
 	memcpy(&line_width, &data[i], 4); i+=4;
 }
 
+bool BPLN::isContained(float x, float z)
+{
+	return false;
+}
+
 BCIR::BCIR(unsigned char* data, unsigned int dataSize)
 {
 	type = LAYER_BCIR;
 	memcpy(&x, &data[0], 4);
-	memcpy(&y, &data[4], 4);
+	memcpy(&z, &data[4], 4);
 	
 	memcpy(&rad, &data[8], 4);
 
 	memcpy(&feather_type, &data[12], 4);
 	memcpy(&feather_amount, &data[16], 4);
-
 	//printf("==BCIR==\nPOS: (%f,%f)\nRAD: %f\nFeather Type: (%d)\nFeather Amount: (%f)\n", x, y, rad, feather_type, feather_amount);
+}
+
+bool BCIR::isContained(float px, float pz)
+{
+	float distx = pow(px-x,2);
+	float distz = pow(pz-z,2);
+	float r2 = pow(rad,2);
+
+	if ( distx + distz < r2)
+		return true;
+
+	return false;
 }
 
 AFSC::AFSC(unsigned char* data, unsigned int dataSize)
@@ -567,4 +682,12 @@ FDIR::FDIR(unsigned char* data, unsigned int dataSize)
 	this->data = new unsigned char[dataSize];
 	memcpy(this->data, data, dataSize);
 	this->size = dataSize;
+}
+
+LAYER* CONTAINER_LAYER::getHeight(void)
+{
+	if (height != NULL)
+		return height;
+	else
+		return ((CONTAINER_LAYER*)parent)->getHeight();
 }

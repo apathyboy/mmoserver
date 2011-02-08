@@ -1,6 +1,6 @@
-#include "Layer.h"
+#include "Boundary.h"
 
-class BPOL : public TRNLib::LAYER
+class BPOL : public TRNLib::Boundary
 {
 public:
 	BPOL(unsigned char* data, unsigned int dataSize);
@@ -9,8 +9,10 @@ public:
 
 	int feather_type;
 	float shore_smoothness;
-	int is_water;
+	int use_water_height;
 	float water_height;
 	float water_shader_size;
 	unsigned char* water_shader;
+
+	bool isContained(float x, float z);
 };

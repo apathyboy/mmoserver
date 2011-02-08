@@ -1,11 +1,14 @@
-#include "Layer.h"
+#include "Height.h"
+#include "../../ZoneServer/TerrainManager.h"
 
-class AHFR : public TRNLib::LAYER
+class AHFR : public TRNLib::Height
 {
 public:
 	AHFR(unsigned char* data, unsigned int dataSize);
 
 	int   fractal_id;
-	int   unk2;
-	float unk3;
+	int   transform_type;
+	float height;
+
+	float getBaseHeight(float x, float z, TerrainManager* tm);
 };

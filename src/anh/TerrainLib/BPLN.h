@@ -1,6 +1,6 @@
-#include "Layer.h"
+#include "Boundary.h"
 
-class BPLN : public TRNLib::LAYER
+class BPLN : public TRNLib::Boundary
 {
 public:
 	BPLN(unsigned char* data, unsigned int dataSize);
@@ -10,4 +10,6 @@ public:
 	int feather_type;
 	float feather_amount;
 	float line_width;
+
+	bool isContained(float x, float z);
 };
