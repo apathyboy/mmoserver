@@ -45,6 +45,7 @@ public:
 	float getWaterHeight(float x, float z, float& water_height);
 	TRNLib::CONTAINER_LAYER* findLayer(float x, float z);
 	TRNLib::MFAM* getFractal(int fractal_id);
+	float getHeight(float x, float z);
 
 private:
 	TRNLib::Trn terrain_file;

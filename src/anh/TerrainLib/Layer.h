@@ -67,6 +67,7 @@ namespace TRNLib
 		CONTAINER_LAYER()
 		{
 			type = LAYER_CONTAINER;
+			height = NULL;
 		}
 
 		int enabled;

@@ -42,17 +42,9 @@ TerrainManager::TerrainManager(std::string terrain_filename)
 	if (terrain_file.getError() == 0)
 	{
 		LOG(INFO) << "Successfully loaded the terrain file.";
-		TRNLib::LAYER* heightLayer = findLayer(0,0)->height;
-		if (heightLayer->type == TRNLib::LAYER_AHCN)
-		{
-			AHCN* constant_height = (AHCN*)heightLayer;
-			LOG(ERROR) << "Height layer: [" << constant_height->customName << "]";
-		}
-		else
-		{
-			AHFR* fractal_height = (AHFR*)heightLayer;
-			LOG(ERROR) << "Height layer: [" << fractal_height->customName << "]";
-		}
+		float x = 1307.160034f; float z = 3131.459961f;
+		float y = getHeight(x, z);
+		LOG(ERROR) << "Height at [" << x << ", " << z << "] is [" << y << "]";
 	}
 	else
 	{
@@ -122,20 +114,26 @@ TRNLib::CONTAINER_LAYER* TerrainManager::findLayer(float x, float z)
 TRNLib::CONTAINER_LAYER* TerrainManager::findLayerRecursive(float x, float z, TRNLib::CONTAINER_LAYER* rootLayer)
 {
 	std::vector<TRNLib::LAYER*> layers = rootLayer->children;
+	TRNLib::LAYER* test_layer;
 	TRNLib::CONTAINER_LAYER* layer;
 	std::vector<TRNLib::LAYER*> boundaries;
 	TRNLib::Boundary* boundary;
 
 	for (unsigned int i = 0; i < layers.size(); i++)
 	{
-		layer = (TRNLib::CONTAINER_LAYER*)layers.at(i);
-		boundaries = layer->boundaries;
+		test_layer = layers.at(i);
 
-		for (unsigned int j = 0; j < boundaries.size(); j++)
+		if (test_layer->type == TRNLib::LAYER_CONTAINER)
 		{
-			boundary = (TRNLib::Boundary*)boundaries.at(j);
-			if (boundary->isContained(x, z))
-				return findLayerRecursive(x, z, layer);
+			layer = (TRNLib::CONTAINER_LAYER*)test_layer;
+			boundaries = layer->boundaries;
+
+			for (unsigned int j = 0; j < boundaries.size(); j++)
+			{
+				boundary = (TRNLib::Boundary*)boundaries.at(j);
+				if (boundary->isContained(x, z))
+					return findLayerRecursive(x, z, layer);
+			}
 		}
 	}
 
@@ -145,4 +143,21 @@ TRNLib::CONTAINER_LAYER* TerrainManager::findLayerRecursive(float x, float z, TR
 TRNLib::MFAM* TerrainManager::getFractal(int fractal_id)
 {
 	return terrain_file.getFractalFamilies()->at(fractal_id);
+}
+
+float TerrainManager::getHeight(float x, float z)
+{
+	TRNLib::LAYER* height_layer = findLayer(x, z)->getHeight();
+	float base_height;
+
+	if (height_layer->type == TRNLib::LAYER_AHCN)
+	{
+		base_height = ((AHCN*)height_layer)->getBaseHeight(x,z, this);
+	}
+	else
+	{
+		base_height = ((AHFR*)height_layer)->getBaseHeight(x,z, this);
+	}
+
+	return base_height;
 }

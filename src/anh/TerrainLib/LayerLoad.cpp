@@ -284,6 +284,7 @@ LAYER* LAYER::LOAD(IFF::NODE* node)
 		unsigned int strLen = strlen(const_cast<const char*>((char*)&data[4])) + 1;
 		layer->customName = new unsigned char[strLen];
 		memcpy(layer->customName, &data[4], strLen);
+		layer->parent = NULL;
 	}
 
 	return layer;
@@ -366,14 +367,14 @@ AHCN::AHCN(unsigned char* data, unsigned int dataSize)
 	type = LAYER_AHCN;
 
 	memcpy(&transform_type, &data[0], 4);
-	memcpy(&height, &data[4], 4);
+	memcpy(&height_val, &data[4], 4);
 
 	//printf("C: %d %f\n", unk1, unk2);
 }
 
 float AHCN::getBaseHeight(float x, float z, TerrainManager* tm)
 {
-	return height;
+	return height_val;
 }
 
 AHFR::AHFR(unsigned char* data, unsigned int dataSize)
@@ -382,15 +383,42 @@ AHFR::AHFR(unsigned char* data, unsigned int dataSize)
 
 	memcpy(&fractal_id, &data[0], 4);
 	memcpy(&transform_type, &data[4], 4);
-	memcpy(&height, &data[8], 4);
+	memcpy(&height_val, &data[8], 4);
 
 	//printf("F: %d %d %f\n", unk1, unk2, unk3);
 }
 
 float AHFR::getBaseHeight(float x, float z, TerrainManager* tm)
 {
+	float baseValue = 0.0f;
+	float transformValue = 1.0f;
+
 	TRNLib::MFAM* fractal = tm->getFractal(fractal_id);
-	return 0.0f;
+	
+	float noiseResult = fractal->getNoise(x, z) * height_val;
+
+	float result;
+
+	switch (transform_type)
+	{
+		case 1:
+		result = baseValue + noiseResult * transformValue;
+		break;
+	case 2:
+		result = baseValue - noiseResult * transformValue;
+		break;
+	case 3:
+		result = baseValue + (noiseResult * baseValue - baseValue) * transformValue;
+		break;
+	case 4:
+		result = baseValue;
+		break;
+	default:
+		result = baseValue + (noiseResult - baseValue) * transformValue;
+		break;
+	}
+
+	return result;
 }
 
 FFRA::FFRA(unsigned char* data, unsigned int dataSize)

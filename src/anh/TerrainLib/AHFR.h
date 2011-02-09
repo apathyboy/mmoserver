@@ -8,7 +8,7 @@ public:
 
 	int   fractal_id;
 	int   transform_type;
-	float height;
+	float height_val;
 
 	float getBaseHeight(float x, float z, TerrainManager* tm);
 };

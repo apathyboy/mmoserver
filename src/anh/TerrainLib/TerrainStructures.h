@@ -1,4 +1,6 @@
 #include <vector>
+#include "anh\Random.h"
+#include "anh\PerlinNoise.h"
 
 namespace TRNLib
 {
@@ -124,7 +126,7 @@ public:
 	unsigned char* fractal_label;
 
 	//MFRCFORM
-	int				seed_arg;			//seed ??
+	int				seed;			//seed ??
 	int				use_bias;			//Bias type??
 	float			bias;				//bias amount??
 	int				use_gain;			//Gain type??
@@ -139,10 +141,18 @@ public:
 	unsigned int	combination_type;	//Use both?
 
 	float			offset;				// Resulting offset from amplitude
+	Random*			rand;				// Random generator
+	PerlinNoise*	noise;				// Noise generator
 
-private:
 	void setSeed(int seed);				// Seed the random generator
 	void setAmplitude(void);			// Set the offset from the TRN file amplitude
+	float getNoise(float x, float z);	// Generate noise for given coordinates
+
+	double calculateCombination1(float x, float z);
+	double calculateCombination2(float x, float z);
+	double calculateCombination3(float x, float z);
+	double calculateCombination4(float x, float z);
+	double calculateCombination5(float x, float z);
 };
 
 class HEADER

@@ -7,7 +7,7 @@ public:
 	AHCN(unsigned char* data, unsigned int dataSize);
 
 	int   transform_type;
-	float height;
+	float height_val;
 
 	float getBaseHeight(float x, float z, TerrainManager* tm);
 };

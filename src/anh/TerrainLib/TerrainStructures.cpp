@@ -200,7 +200,8 @@ MFAM::MFAM(unsigned char* data, unsigned char* data2)
 
 	//Second Part
 	//Read seed_arg;
-	memcpy(&seed_arg , &data2[i], 4); i+=4;
+	memcpy(&seed , &data2[i], 4); i+=4;
+	setSeed(seed);
 	//Read use_bias;
 	memcpy(&use_bias , &data2[i], 4); i+=4;
 	//Read bias;
@@ -230,7 +231,14 @@ MFAM::MFAM(unsigned char* data, unsigned char* data2)
 
 void MFAM::setSeed(int seed)
 {
-	// Initialize Random
+	rand = new Random();
+	rand->setSeed(seed);
+
+	noise = new PerlinNoise(rand);
+	double coord[2];
+	coord[0] = 0, coord[1] = 0;
+
+	noise->noise2(coord);
 }
 
 void MFAM::setAmplitude()
@@ -240,7 +248,7 @@ void MFAM::setAmplitude()
 	float curr_amplitude = 0.0f;
 	float next_amplitude = 1.0f;
 
-	for (int i = 0; i < octaves; i++)
+	for (unsigned int i = 0; i < octaves; i++)
 	{
 		curr_amplitude = curr_amplitude + next_amplitude;
 		next_amplitude = next_amplitude * amplitude;
@@ -250,4 +258,229 @@ void MFAM::setAmplitude()
 
 	if (offset != 0)
 		offset = 1.0/offset;
+}
+
+float MFAM::getNoise(float x, float z) 
+{
+	float xFrequency = x * freq_x;
+	float zFrequency = z * freq_z;
+
+	double result = 0;
+
+	switch (combination_type) 
+	{
+	case 0:
+	case 1:
+		result = calculateCombination1(xFrequency, zFrequency);
+		break;
+	case 2:
+		result = calculateCombination2(xFrequency, zFrequency);
+		break;
+	case 3:
+		result = calculateCombination3(xFrequency, zFrequency);
+		break;
+	case 4:
+		result = calculateCombination4(xFrequency, zFrequency);
+		break;
+	case 5:
+		result = calculateCombination5(xFrequency, zFrequency);
+		break;
+	}
+
+	if (use_bias) 
+	{
+		result = pow(result, log(bias) / log(0.5));
+	}
+
+	if (use_gain) 
+	{
+		if (result < 0.001) 
+		{
+			result = 0;
+
+			return result;
+		}
+
+		if (result > 0.999) 
+		{
+			result = 1.0;
+
+			return result;
+		}
+
+		double log_gain = log(1.0 - gain) / log(0.5);
+
+		if (result < 0.5) 
+		{
+			result = pow(result * 2, log_gain) * 0.5;
+
+			return result;
+		}
+
+		result = 1.0 - pow((1.0 - result) * 2, log_gain) * 0.5;
+	}
+
+	return result;
+}
+
+double MFAM::calculateCombination1(float x, float z) 
+{
+	float curr_offset = 1, curr_ampl = 1;
+	double result = 0;
+
+	float zOffset = z + offset_z; 
+	float xOffset = x + offset_x; 
+	float zNoise, xNoise, noise_gen = 0;
+	double coord[2];
+
+	for (int i = 0; i < octaves; ++i) 
+	{
+		zNoise = zOffset * curr_offset;
+		xNoise = xOffset * curr_offset;
+
+		coord[0] = xNoise;
+		coord[1] = zNoise;
+
+		noise_gen = noise->noise2(coord) * curr_ampl + noise_gen;
+		curr_offset = curr_offset * octaves_arg; 
+		curr_ampl = curr_ampl * amplitude; 
+	}
+
+	result = (noise_gen * offset + 1.0) * 0.5;
+
+	return result;
+}
+
+double MFAM::calculateCombination2(float x, float z) 
+{
+	float noise_gen = 0;
+	float zOffset = z + offset_z;
+	float zNoise, xOffset, xNoise;
+	float curr_offset = 1.0;
+	float curr_ampl = 1.0;
+	double result = 0;
+	double coord[2];
+
+	for (int i = 0; i < octaves; ++i) 
+	{
+		zNoise = zOffset * curr_offset;
+		xOffset = x + offset_x;
+		xNoise = xOffset * curr_offset;
+
+		coord[0] = xNoise;
+		coord[1] = zNoise;
+
+		noise_gen = (1.0 - fabs(noise->noise2(coord))) * curr_ampl + noise_gen;
+		curr_offset = curr_offset * octaves_arg; 
+		curr_ampl = curr_ampl * amplitude;
+	}
+
+	result = noise_gen * offset;
+
+	return result;
+}
+
+double MFAM::calculateCombination3(float x, float z) 
+{
+	float curr_offset = 1.0;
+	float curr_ampl = 1.0;
+	double result = 0;
+	float noise_gen = 0;
+	float zOffset = z + offset_z; 
+	float zNoise, xOffset, xNoise;
+
+	double coord[2];
+
+	for (int i = 0; i < octaves; ++i) 
+	{
+		zNoise = zOffset * curr_offset;
+		xOffset = x + offset_x; 
+		xNoise = xOffset * curr_offset;
+
+		coord[0] = xNoise;
+		coord[1] = zNoise;
+
+		noise_gen = fabs(noise->noise2(coord)) * curr_ampl + noise_gen;
+		curr_offset = curr_offset * octaves_arg;
+		curr_ampl = curr_ampl * amplitude; 
+	}
+
+	result = noise_gen * offset; 
+
+	return result;
+}
+
+double MFAM::calculateCombination4(float x, float z) 
+{
+	float noise_gen = 0;
+	float zNoise, xNoise, noise_gain;
+	float zOffset = z + offset_z; 
+	float xOffset = x + offset_x; 
+	double coord[2];
+
+	float curr_offset = 1.0;
+	float curr_ampl = 1.0;
+	double result = 0;
+
+	for (int i = 0; i < octaves; ++i) 
+	{
+		zNoise = zOffset * curr_offset;
+		xNoise = xOffset * curr_offset;
+
+		coord[0] = xNoise;
+		coord[1] = zNoise;
+
+		noise_gain = noise->noise2(coord);
+		if ( noise_gain >= 0.0 ) 
+			if ( noise_gain > 1.0 )
+				noise_gain = 1.0;
+		else 
+			noise_gain = 0.0;
+
+		noise_gen = (1.0 - noise_gain) * curr_ampl + noise_gen;
+		curr_offset = curr_offset * octaves_arg; 
+		curr_ampl = curr_ampl * amplitude;
+	}
+
+	result = noise_gen * offset;
+
+	return result;
+}
+
+double MFAM::calculateCombination5(float x, float z) 
+{
+	float noise_gen = 0;
+	float zNoise, xNoise, noise_gain;
+	float zOffset = z + offset_z; 
+	float xOffset = x + offset_x;
+	double coord[2];
+	double result = 0;
+
+	float curr_offset = 1.0;
+	float curr_ampl = 1.0;
+
+	for (int i = 0; i < octaves; ++i) 
+	{
+		zNoise = zOffset * curr_offset;
+		xNoise = xOffset * curr_offset;
+
+		coord[0] = xNoise;
+		coord[1] = zNoise;
+
+		noise_gain = noise->noise2(coord);
+
+		if ( noise_gain >= 0.0 ) 
+			if (noise_gain > 1.0)
+				noise_gain = 1.0;
+		else 
+			noise_gain = 0.0;
+
+		noise_gen = noise_gain * curr_ampl + noise_gen;
+		curr_offset = curr_offset * octaves_arg;
+		curr_ampl = curr_ampl * amplitude;
+	}
+
+	result = noise_gen * offset;
+
+	return result;
 }

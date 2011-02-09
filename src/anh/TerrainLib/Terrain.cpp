@@ -308,6 +308,8 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 				}
 				else if (temp->type == LAYER_AHCN || temp->type == LAYER_AHFR)
 					result->height = temp;
+				else if (temp->type == LAYER_CONTAINER)
+					result->children.push_back(temp);
 				else if(temp)
 					result->others.push_back(temp);
 				else
