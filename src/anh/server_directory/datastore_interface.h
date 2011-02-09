@@ -22,7 +22,7 @@
 
 #include <cstdint>
 
-#include <map>
+#include <list>
 #include <memory>
 #include <string>
 
@@ -48,8 +48,8 @@ public:
 
     virtual bool deleteProcessById(uint32_t id) const = 0;
 
-    virtual std::map<uint32_t, std::shared_ptr<Cluster>> getClusterMap() const = 0;
-    virtual std::map<uint32_t, std::shared_ptr<Process>> getProcessMap(uint32_t cluster_id) const = 0;
+    virtual std::list<Cluster> getClusterList() const = 0;
+    virtual std::list<Process> getProcessList(uint32_t cluster_id) const = 0;
     virtual std::string prepareTimestampForStorage(const std::string& timestamp) const = 0;
 };
 

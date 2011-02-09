@@ -258,32 +258,32 @@ bool Datastore::deleteProcessById(uint32_t id) const {
     return statement->executeUpdate() > 0;
 }
 
-std::map<uint32_t, std::shared_ptr<Cluster>> Datastore::getClusterMap() const {
+list<Cluster> Datastore::getClusterList() const {
     std::unique_ptr<sql::Statement> statement(connection_->createStatement());
     std::unique_ptr<sql::ResultSet> result(statement->executeQuery(
         "SELECT * FROM cluster ORDER BY cluster.name"));
 
     // Loop through the results and create a map entry for each.
-    std::map<uint32_t, std::shared_ptr<Cluster>> map;
+    std::list<Cluster> cluster_list;
     uint32_t id = 0;
 
     while (result->next()) {
         id = result->getUInt("id");
 
-        map.insert(std::make_pair(id, make_shared<Cluster>(
+        cluster_list.push_back(Cluster(
             id,
             result->getUInt("primary_id"),
             result->getString("name"),
             result->getString("version"),
             static_cast<Cluster::StatusType>(result->getInt("status")),
             result->getString("created_at"),
-            result->getString("updated_at"))));
+            result->getString("updated_at")));
     }
 
-    return map;
+    return cluster_list;
 }
 
-std::map<uint32_t, std::shared_ptr<Process>> Datastore::getProcessMap(uint32_t cluster_id) const {
+list<Process> Datastore::getProcessList(uint32_t cluster_id) const {
     std::unique_ptr<sql::PreparedStatement> statement(connection_->prepareStatement(
         "SELECT id, cluster_id, type, version, address, tcp_port, udp_port, status, TIMESTAMP(last_pulse) as last_pulse_timestamp "
         "FROM process WHERE cluster_id = ? ORDER BY process.type"));
@@ -293,13 +293,13 @@ std::map<uint32_t, std::shared_ptr<Process>> Datastore::getProcessMap(uint32_t c
     std::unique_ptr<sql::ResultSet> result(statement->executeQuery());
 
     // Loop through the results and create a map entry for each.
-    std::map<uint32_t, std::shared_ptr<Process>> map;
+    std::list<Process> process_list;
     uint32_t id = 0;
 
     while (result->next()) {
         id = result->getUInt("id");
 
-        auto proc = make_shared<Process>(
+        Process proc(
             id,
             result->getUInt("cluster_id"),
             result->getString("name"),
@@ -309,13 +309,13 @@ std::map<uint32_t, std::shared_ptr<Process>> Datastore::getProcessMap(uint32_t c
             result->getUInt("tcp_port"),
             result->getUInt("udp_port"),
             result->getUInt("ping_port"));
-        proc->status(result->getInt("status"));
-        proc->last_pulse(result->getString("last_pulse_timestamp"));
+        proc.status(result->getInt("status"));
+        proc.last_pulse(result->getString("last_pulse_timestamp"));
         
-        map.insert(std::make_pair(id, proc));
+        process_list.push_back(std::move(proc));
     }
 
-    return map;
+    return process_list;
 }
 
 std::string Datastore::prepareTimestampForStorage(const std::string& timestamp) const {    

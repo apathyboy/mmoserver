@@ -22,7 +22,7 @@
 
 #include <cstdint>
 
-#include <map>
+#include <list>
 #include <memory>
 #include <string>
 
@@ -56,8 +56,8 @@ public:
     bool deleteProcessById(uint32_t id) const;
     void saveProcess(std::shared_ptr<Process> process) const;
     
-    std::map<uint32_t, std::shared_ptr<Cluster>> getClusterMap() const;
-    std::map<uint32_t, std::shared_ptr<Process>> getProcessMap(uint32_t cluster_id) const;
+    std::list<Cluster> getClusterList() const;
+    std::list<Process> getProcessList(uint32_t cluster_id) const;
     std::string prepareTimestampForStorage(const std::string& timestamp) const;
 private:
     Datastore();
