@@ -28,6 +28,7 @@
 
 #include "anh/server_directory/cluster.h"
 #include "anh/server_directory/process.h"
+#include "anh/server_directory/server_directory_interface.h"
 
 namespace anh {
 namespace server_directory {
@@ -46,26 +47,10 @@ public:
         : std::runtime_error(message) {}
 };
 
-typedef std::map<uint32_t, std::shared_ptr<Cluster>> ClusterMap;
-typedef std::map<uint32_t, std::shared_ptr<Process>> ProcessMap;
-
-/// Simple interface
-class IServerDirectory {
-public:
-    virtual ~IServerDirectory() {}
-
-    virtual bool registerProcess(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping)=0;
-    virtual bool removeProcess(std::shared_ptr<Process>& process)=0;
-    virtual void updateProcessStatus(std::shared_ptr<Process>& process, int32_t new_status)=0;
-    
-    virtual bool makePrimaryProcess(std::shared_ptr<Process> process)=0;
-
-    virtual void pulse()=0;
-};
 /*! \brief ServerDirectory is a utility class intended to assist processes in
 * registering themselves and participating in a clustered environment.
 */
-class ServerDirectory : public IServerDirectory{
+class ServerDirectory : public ServerDirectoryInterface{
 public:
     explicit ServerDirectory(std::shared_ptr<DatastoreInterface> datastore);
     ServerDirectory(std::shared_ptr<DatastoreInterface> datastore, const std::string& cluster_name, const std::string& version, bool create_cluster = false);
