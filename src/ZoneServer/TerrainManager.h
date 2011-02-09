@@ -43,13 +43,14 @@ public:
 
 	TRNLib::HEADER* getHeaders(void);
 	float getWaterHeight(float x, float z, float& water_height);
-	TRNLib::CONTAINER_LAYER* findLayer(float x, float z);
+	TRNLib::LAYER* findLayer(float x, float z);
 	TRNLib::MFAM* getFractal(int fractal_id);
 	float getHeight(float x, float z);
 
 private:
 	TRNLib::Trn terrain_file;
-	TRNLib::CONTAINER_LAYER* findLayerRecursive(float x, float z, TRNLib::CONTAINER_LAYER* rootLayer);
+	TRNLib::LAYER* findLayerRecursive(float x, float z, TRNLib::LAYER* rootLayer);
+	float processLayerHeight(TRNLib::LAYER* layer, float x, float z, float& base_value, float affector_transform);
 };
 
 #endif

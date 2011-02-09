@@ -712,10 +712,12 @@ FDIR::FDIR(unsigned char* data, unsigned int dataSize)
 	this->size = dataSize;
 }
 
-LAYER* CONTAINER_LAYER::getHeight(void)
+LAYER* LAYER::getHeight(void)
 {
 	if (height != NULL)
 		return height;
-	else
-		return ((CONTAINER_LAYER*)parent)->getHeight();
+	else if (parent != NULL)
+		return parent->getHeight();
+
+	return NULL;
 }

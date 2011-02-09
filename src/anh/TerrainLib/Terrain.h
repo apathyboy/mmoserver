@@ -28,7 +28,7 @@ namespace TRNLib
 		std::vector<EFAM*>* getEnvironmentFamilies() {return &EnvironmentFamilies;}
 		std::vector<MFAM*>* getFractalFamilies() {return &FractalFamilies;}
 
-		std::vector<CONTAINER_LAYER*>* getLayers() {return &layers;}
+		std::vector<LAYER*>* getLayers() {return &layers;}
 
 		FOOTER* getFooterData(){return &footer;}
 
@@ -51,7 +51,7 @@ namespace TRNLib
 		std::vector<RFAM*> RadialFloraFamilies;
 		std::vector<EFAM*> EnvironmentFamilies;
 		std::vector<MFAM*> FractalFamilies;
-		std::vector<CONTAINER_LAYER*> layers;
+		std::vector<LAYER*> layers;
 
 		FOOTER footer;
 

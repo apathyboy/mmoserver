@@ -88,9 +88,9 @@ float TerrainManager::getWaterHeight(float x, float z, float& water_height)
 	return false;
 }
 
-TRNLib::CONTAINER_LAYER* TerrainManager::findLayer(float x, float z)
+TRNLib::LAYER* TerrainManager::findLayer(float x, float z)
 {
-	std::vector<TRNLib::CONTAINER_LAYER*>* layers = terrain_file.getLayers();
+	std::vector<TRNLib::LAYER*>* layers = terrain_file.getLayers();
 	TRNLib::CONTAINER_LAYER* layer;
 	std::vector<TRNLib::LAYER*> boundaries;
 	TRNLib::Boundary* boundary;
@@ -108,32 +108,26 @@ TRNLib::CONTAINER_LAYER* TerrainManager::findLayer(float x, float z)
 		}
 	}
 
-	return (TRNLib::CONTAINER_LAYER*)layers->at(0);
+	return layers->at(0);
 }
 
-TRNLib::CONTAINER_LAYER* TerrainManager::findLayerRecursive(float x, float z, TRNLib::CONTAINER_LAYER* rootLayer)
+TRNLib::LAYER* TerrainManager::findLayerRecursive(float x, float z, TRNLib::LAYER* rootLayer)
 {
-	std::vector<TRNLib::CONTAINER_LAYER*> layers = rootLayer->children;
-	TRNLib::LAYER* test_layer;
+	std::vector<TRNLib::LAYER*> layers = ((TRNLib::CONTAINER_LAYER*)rootLayer)->children;
 	TRNLib::CONTAINER_LAYER* layer;
 	std::vector<TRNLib::LAYER*> boundaries;
 	TRNLib::Boundary* boundary;
 
 	for (unsigned int i = 0; i < layers.size(); i++)
 	{
-		test_layer = layers.at(i);
+		layer = (TRNLib::CONTAINER_LAYER*)layers.at(i);
+		boundaries = layer->boundaries;
 
-		if (test_layer->type == TRNLib::LAYER_CONTAINER)
+		for (unsigned int j = 0; j < boundaries.size(); j++)
 		{
-			layer = (TRNLib::CONTAINER_LAYER*)test_layer;
-			boundaries = layer->boundaries;
-
-			for (unsigned int j = 0; j < boundaries.size(); j++)
-			{
-				boundary = (TRNLib::Boundary*)boundaries.at(j);
-				if (boundary->isContained(x, z))
-					return findLayerRecursive(x, z, layer);
-			}
+			boundary = (TRNLib::Boundary*)boundaries.at(j);
+			if (boundary->isContained(x, z))
+				return findLayerRecursive(x, z, layer);
 		}
 	}
 
@@ -147,17 +141,64 @@ TRNLib::MFAM* TerrainManager::getFractal(int fractal_id)
 
 float TerrainManager::getHeight(float x, float z)
 {
-	TRNLib::LAYER* height_layer = findLayer(x, z)->getHeight();
-	float base_height;
+	std::vector<TRNLib::LAYER*>* layers = terrain_file.getLayers();
 
-	if (height_layer->type == TRNLib::LAYER_AHCN)
+	float affector_transform = 1.0f;
+	float transform_value = 0.0f;
+	float height_result = 0.0f;
+
+	for (unsigned int i = 0; i < layers->size(); i++)
 	{
-		base_height = ((AHCN*)height_layer)->getBaseHeight(x,z, this);
-	}
-	else
-	{
-		base_height = ((AHFR*)height_layer)->getBaseHeight(x,z, this);
+		TRNLib::LAYER* layer = layers->at(i);
+		transform_value = processLayerHeight(layer, x, z, height_result, affector_transform);
 	}
 
-	return base_height;
+	return height_result;
+}
+
+float TerrainManager::processLayerHeight(TRNLib::LAYER* layer, float x, float z, float& base_value, float affector_transform)
+{
+	std::vector<TRNLib::LAYER*> boundaries = layer->boundaries;
+	TRNLib::LAYER* height_affector = layer->getHeight();
+
+	float transform_value = 0.0f;
+	bool has_boundaries = false;
+	float result = 0.0f;
+
+	for (unsigned int i = 0; i < boundaries.size(); i++)
+	{
+		TRNLib::Boundary* boundary = (TRNLib::Boundary*)boundaries.at(i);
+
+		if (boundary->enabled)
+			continue;
+		else
+			has_boundaries = true;
+
+		if (boundary->isContained(x, z))
+			result = 1.0f;
+
+		if (result > transform_value)
+			transform_value = result;
+	}
+
+	if (has_boundaries == false)
+		transform_value = 1.0f;
+
+	if (transform_value != 0)
+	{
+		if (height_affector != NULL)
+			base_value = ((TRNLib::Height*)height_affector)->getBaseHeight(x, z, this);
+
+		std::vector<TRNLib::LAYER*> children = layer->children;
+
+		for (unsigned int i = 0; i < children.size(); i++)
+		{
+			TRNLib::LAYER* child = children.at(i);
+
+			if (child->enabled)
+				processLayerHeight(child, x, z, base_value, affector_transform * transform_value);
+		}
+	}
+
+	return transform_value;
 }
