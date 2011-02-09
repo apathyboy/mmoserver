@@ -65,8 +65,8 @@ public:
     MOCK_CONST_METHOD1(saveProcess, void(std::shared_ptr<Process> process));
     MOCK_CONST_METHOD1(findClusterById, shared_ptr<Cluster>(uint32_t id));
     MOCK_CONST_METHOD1(deleteProcessById, bool(uint32_t id));
-    MOCK_CONST_METHOD0(getClusterMap, ClusterMap());
-    MOCK_CONST_METHOD1(getProcessMap, ProcessMap(uint32_t cluster_id));
+    MOCK_CONST_METHOD0(getClusterList, ClusterList());
+    MOCK_CONST_METHOD1(getProcessList, ProcessList(uint32_t cluster_id));
     MOCK_CONST_METHOD1(prepareTimestampForStorage, std::string(const std::string& timestamp));
 };
 

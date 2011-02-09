@@ -21,19 +21,33 @@
 #define ANH_MOCK_SERVER_DIRECTORY_SERVER_DIRECTORY_H_
 
 #include <gmock/gmock.h>
-#include <anh/server_directory/server_directory.h>
+
+#include "anh/server_directory/process.h"
+#include "anh/server_directory/server_directory_interface.h"
 
 namespace anh {
 namespace server_directory {
 
-class MockServerDirectory : public IServerDirectory
+class MockServerDirectory : public ServerDirectoryInterface
 {
 public:
-    MOCK_METHOD7(registerProcess, bool(const std::string& name, const std::string& process_type, const std::string& version, const std::string& address, uint16_t tcp_port, uint16_t udp_port, uint16_t ping));
+    MOCK_METHOD7(registerProcess, bool(
+        const std::string& name, 
+        const std::string& process_type, 
+        const std::string& version, 
+        const std::string& address, 
+        uint16_t tcp_port, 
+        uint16_t udp_port, 
+        uint16_t ping));
     MOCK_METHOD1(removeProcess, bool(std::shared_ptr<Process>& process));
-    MOCK_METHOD2(updateProcessStatus, void(std::shared_ptr<Process>& process, int32_t new_status));
+    MOCK_METHOD2(updateProcessStatus, void(
+        std::shared_ptr<Process>& process,
+        int32_t new_status));
     MOCK_METHOD1(makePrimaryProcess, bool(std::shared_ptr<Process> process));
     MOCK_METHOD0(pulse, void());
+    MOCK_CONST_METHOD0(getClusterSnapshot, ClusterList());
+    MOCK_CONST_METHOD1(getProcessSnapshot, ProcessList(
+        std::shared_ptr<Cluster> cluster));
 };
 
 } // end server_directory

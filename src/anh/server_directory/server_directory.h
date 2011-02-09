@@ -66,8 +66,8 @@ public:
 
     void pulse();
 
-    ClusterMap getClusterSnapshot() const;
-    ProcessMap getProcessSnapshot(std::shared_ptr<Cluster> cluster) const;
+    ClusterList getClusterSnapshot() const;
+    ProcessList getProcessSnapshot(std::shared_ptr<Cluster> cluster) const;
 
 private:
     std::shared_ptr<DatastoreInterface> datastore_;

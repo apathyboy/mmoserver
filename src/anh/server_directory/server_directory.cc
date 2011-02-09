@@ -111,11 +111,11 @@ void ServerDirectory::pulse() {
     }
 }
 
-ClusterMap ServerDirectory::getClusterSnapshot() const {
-    return datastore_->getClusterMap();
+ClusterList ServerDirectory::getClusterSnapshot() const {
+    return datastore_->getClusterList();
 }
 
-ProcessMap ServerDirectory::getProcessSnapshot(shared_ptr<Cluster> cluster) const {
-    return datastore_->getProcessMap(cluster->id());
+ProcessList ServerDirectory::getProcessSnapshot(shared_ptr<Cluster> cluster) const {
+    return datastore_->getProcessList(cluster->id());
 }
 
