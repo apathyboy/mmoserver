@@ -20,21 +20,48 @@
 #ifndef LOGIN_LOGIN_SERVER_H_
 #define LOGIN_LOGIN_SERVER_H_
 
-#include <memory>
+#include <list>
+
+#include "anh/memory.h"
 
 #include "anh/event_dispatcher/event_dispatcher_interface.h"
+#include "anh/server_directory/server_directory_interface.h"
+
+namespace anh {
+namespace event_dispatcher {
+    class EventDispatcherInterface;
+}
+}
 
 namespace login {
 
 class LoginServer {
 public:
-    explicit LoginServer(std::shared_ptr<anh::event_dispatcher::EventDispatcherInterface> event_dispatcher);
+    LoginServer();
+    ~LoginServer();
+
+    std::shared_ptr<anh::event_dispatcher::EventDispatcherInterface> event_dispatcher();
+    void event_dispatcher(std::shared_ptr<anh::event_dispatcher::EventDispatcherInterface> event_dispatcher);
+    
+    std::shared_ptr<anh::server_directory::ServerDirectoryInterface> server_directory();
+    void server_directory(std::shared_ptr<anh::server_directory::ServerDirectoryInterface> server_directory);
+
+    void startup();
+
+    void updateClusterList();
+    
+    std::list<std::string> getAvailableVersions() const;
+    std::list<std::string> getAvailableVersions(const anh::server_directory::ClusterList& cluster_list) const;
 
 private:
     bool handleLoginClientId(std::shared_ptr<anh::event_dispatcher::EventInterface> incoming_event);
     bool handleDeleteCharacterMessage(std::shared_ptr<anh::event_dispatcher::EventInterface> incoming_event);
 
     std::shared_ptr<anh::event_dispatcher::EventDispatcherInterface> event_dispatcher_;
+    std::shared_ptr<anh::server_directory::ServerDirectoryInterface> server_directory_;
+
+    anh::server_directory::ClusterList cluster_list_;
+    std::list<std::string> version_list_;
 };
 
 }
