@@ -50,7 +50,7 @@ public:
 private:
 	TRNLib::Trn terrain_file;
 	TRNLib::LAYER* findLayerRecursive(float x, float z, TRNLib::LAYER* rootLayer);
-	float processLayerHeight(TRNLib::LAYER* layer, float x, float z, float& base_value, float affector_transform);
+	float processLayerHeight(TRNLib::CONTAINER_LAYER* layer, float x, float z, float& base_value, float affector_transform);
 };
 
 #endif

@@ -57,15 +57,6 @@ namespace TRNLib
 		bool enabled;
 
 		unsigned char* customName;
-		
-		LAYER* parent;
-		std::vector<LAYER*> children;
-
-		std::vector<LAYER*> boundaries;
-		std::vector<LAYER*> others;
-		LAYER* height;
-
-		LAYER* getHeight(void);
 	};
 
 	class CONTAINER_LAYER : public LAYER
@@ -75,16 +66,20 @@ namespace TRNLib
 		CONTAINER_LAYER()
 		{
 			type = LAYER_CONTAINER;
-			height = NULL;
+			parent = NULL;
 		}
-
-		int enabled;
-		unsigned char* name;
 	
 		int unk2;
 		int unk3; //type unknown
 		int unk4;
 		unsigned char* description;
+
+		LAYER* parent;
+		std::vector<CONTAINER_LAYER*> children;
+
+		std::vector<LAYER*> boundaries;
+		std::vector<LAYER*> others;
+		std::vector<LAYER*> heights;
 	};
 };
 

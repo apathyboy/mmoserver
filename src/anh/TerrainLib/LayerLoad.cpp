@@ -284,7 +284,6 @@ LAYER* LAYER::LOAD(IFF::NODE* node)
 		unsigned int strLen = strlen(const_cast<const char*>((char*)&data[4])) + 1;
 		layer->customName = new unsigned char[strLen];
 		memcpy(layer->customName, &data[4], strLen);
-		layer->parent = NULL;
 	}
 
 	return layer;
@@ -372,9 +371,9 @@ AHCN::AHCN(unsigned char* data, unsigned int dataSize)
 	//printf("C: %d %f\n", unk1, unk2);
 }
 
-float AHCN::getBaseHeight(float x, float z, TerrainManager* tm)
+void AHCN::getBaseHeight(float x, float z, float transform_value, float& base_value, TerrainManager* tm)
 {
-	return height_val;
+	base_value = height_val * transform_value;
 }
 
 AHFR::AHFR(unsigned char* data, unsigned int dataSize)
@@ -388,37 +387,34 @@ AHFR::AHFR(unsigned char* data, unsigned int dataSize)
 	//printf("F: %d %d %f\n", unk1, unk2, unk3);
 }
 
-float AHFR::getBaseHeight(float x, float z, TerrainManager* tm)
+void AHFR::getBaseHeight(float x, float z, float transform_value, float& base_value, TerrainManager* tm)
 {
-	float baseValue = 0.0f;
-	float transformValue = 1.0f;
-
 	TRNLib::MFAM* fractal = tm->getFractal(fractal_id);
 	
-	float noiseResult = fractal->getNoise(x, z) * height_val;
+	float noise_result = fractal->getNoise(x, z) * height_val;
 
 	float result;
 
 	switch (transform_type)
 	{
 		case 1:
-		result = baseValue + noiseResult * transformValue;
+		result = base_value + noise_result * transform_value;
 		break;
 	case 2:
-		result = baseValue - noiseResult * transformValue;
+		result = base_value - noise_result * transform_value;
 		break;
 	case 3:
-		result = baseValue + (noiseResult * baseValue - baseValue) * transformValue;
+		result = base_value + (noise_result * base_value - base_value) * transform_value;
 		break;
 	case 4:
-		result = baseValue;
+		result = base_value;
 		break;
 	default:
-		result = baseValue + (noiseResult - baseValue) * transformValue;
+		result = base_value + (noise_result - base_value) * transform_value;
 		break;
 	}
 
-	return result;
+	base_value = result;
 }
 
 FFRA::FFRA(unsigned char* data, unsigned int dataSize)
@@ -710,14 +706,4 @@ FDIR::FDIR(unsigned char* data, unsigned int dataSize)
 	this->data = new unsigned char[dataSize];
 	memcpy(this->data, data, dataSize);
 	this->size = dataSize;
-}
-
-LAYER* LAYER::getHeight(void)
-{
-	if (height != NULL)
-		return height;
-	else if (parent != NULL)
-		return parent->getHeight();
-
-	return NULL;
 }

@@ -10,5 +10,5 @@ public:
 	int   transform_type;
 	float height_val;
 
-	float getBaseHeight(float x, float z, TerrainManager* tm);
+	void getBaseHeight(float x, float z, float transform_value, float& base_value, TerrainManager* tm);
 };

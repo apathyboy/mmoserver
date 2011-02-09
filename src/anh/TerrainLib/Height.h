@@ -9,7 +9,7 @@ namespace TRNLib
 	class Height : public TRNLib::LAYER
 	{
 	public:
-		virtual float getBaseHeight(float x, float z, TerrainManager* tm) = 0;
+		virtual void getBaseHeight(float x, float z, float transform_value, float& base_value, TerrainManager* tm) = 0;
 	};
 };
 #endif

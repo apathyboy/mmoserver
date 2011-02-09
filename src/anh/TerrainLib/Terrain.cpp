@@ -121,7 +121,7 @@ Trn::Trn(std::string trnFile)
 	
 					while(jt != jend)
 					{
-						layers.push_back(_loadLayer((*jt)->children[0]));
+						layers.push_back(reinterpret_cast<CONTAINER_LAYER*>(_loadLayer((*jt)->children[0])));
 						jt++;
 					}
 					it++;
@@ -260,7 +260,6 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 	if(strcmp(parent->name, "LAYRFORM") == 0)
 	{
 		CONTAINER_LAYER* result = new CONTAINER_LAYER();
-		result->height = NULL;
 		result->parent = NULL;
 
 		std::vector<IFF::NODE*>::iterator it = parent->children.begin();
@@ -273,7 +272,8 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 				//Load Custom Name
 				unsigned char* tempData = (*it)->children[0]->children[0]->data;
 
-				memcpy(&result->enabled, &tempData[0], 4);
+				//memcpy(&result->enabled, &tempData[0], 4);
+				result->enabled    = (tempData[0] == 1) ? true : false;
 
 				unsigned int strLen = strlen(const_cast<const char*>((char*)&tempData[4])) + 1;
 				result->customName = new unsigned char[strLen];
@@ -296,7 +296,6 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 			else
 			{
 				LAYER* temp = _loadLayer((*it)->children[0]);
-				temp->parent = result;
 
 				if (temp->type == LAYER_BREC || temp->type == LAYER_BCIR ||
 					temp->type == LAYER_BPLN)
@@ -309,11 +308,11 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 						waterBoundaries.push_back((Boundary*)temp);
 				}
 				else if (temp->type == LAYER_AHCN || temp->type == LAYER_AHFR)
-					result->height = temp;
+					result->heights.push_back(temp);
 				else if (temp->type == LAYER_CONTAINER)
 				{
-					result->children.push_back(temp);
-					temp->parent = result;
+					result->children.push_back(reinterpret_cast<CONTAINER_LAYER*>(temp));
+					((CONTAINER_LAYER*)temp)->parent = result;
 				}
 				else if(temp)
 					result->others.push_back(temp);

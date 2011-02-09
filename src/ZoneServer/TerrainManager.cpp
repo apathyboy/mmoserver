@@ -42,9 +42,6 @@ TerrainManager::TerrainManager(std::string terrain_filename)
 	if (terrain_file.getError() == 0)
 	{
 		LOG(INFO) << "Successfully loaded the terrain file.";
-		float x = 1307.160034f; float z = 3131.459961f;
-		float y = getHeight(x, z);
-		LOG(ERROR) << "Height at [" << x << ", " << z << "] is [" << y << "]";
 	}
 	else
 	{
@@ -90,7 +87,7 @@ float TerrainManager::getWaterHeight(float x, float z, float& water_height)
 
 TRNLib::LAYER* TerrainManager::findLayer(float x, float z)
 {
-	std::vector<TRNLib::LAYER*>* layers = terrain_file.getLayers();
+	std::vector<TRNLib::CONTAINER_LAYER*>* layers = terrain_file.getLayers();
 	TRNLib::CONTAINER_LAYER* layer;
 	std::vector<TRNLib::LAYER*> boundaries;
 	TRNLib::Boundary* boundary;
@@ -113,7 +110,7 @@ TRNLib::LAYER* TerrainManager::findLayer(float x, float z)
 
 TRNLib::LAYER* TerrainManager::findLayerRecursive(float x, float z, TRNLib::LAYER* rootLayer)
 {
-	std::vector<TRNLib::LAYER*> layers = ((TRNLib::CONTAINER_LAYER*)rootLayer)->children;
+	std::vector<TRNLib::CONTAINER_LAYER*> layers = ((TRNLib::CONTAINER_LAYER*)rootLayer)->children;
 	TRNLib::CONTAINER_LAYER* layer;
 	std::vector<TRNLib::LAYER*> boundaries;
 	TRNLib::Boundary* boundary;
@@ -136,12 +133,22 @@ TRNLib::LAYER* TerrainManager::findLayerRecursive(float x, float z, TRNLib::LAYE
 
 TRNLib::MFAM* TerrainManager::getFractal(int fractal_id)
 {
-	return terrain_file.getFractalFamilies()->at(fractal_id);
+	TRNLib::MFAM* fractal;
+	std::vector<TRNLib::MFAM*>* fractals = terrain_file.getFractalFamilies();
+
+	for (unsigned int i = 0; i < fractals->size(); i++)
+	{
+		fractal = fractals->at(i);
+		if (fractal->fractal_id == fractal_id)
+			return fractal;
+	}
+
+	return NULL;
 }
 
 float TerrainManager::getHeight(float x, float z)
 {
-	std::vector<TRNLib::LAYER*>* layers = terrain_file.getLayers();
+	std::vector<TRNLib::CONTAINER_LAYER*>* layers = terrain_file.getLayers();
 
 	float affector_transform = 1.0f;
 	float transform_value = 0.0f;
@@ -149,17 +156,17 @@ float TerrainManager::getHeight(float x, float z)
 
 	for (unsigned int i = 0; i < layers->size(); i++)
 	{
-		TRNLib::LAYER* layer = layers->at(i);
+		TRNLib::CONTAINER_LAYER* layer = layers->at(i);
 		transform_value = processLayerHeight(layer, x, z, height_result, affector_transform);
 	}
 
 	return height_result;
 }
 
-float TerrainManager::processLayerHeight(TRNLib::LAYER* layer, float x, float z, float& base_value, float affector_transform)
+float TerrainManager::processLayerHeight(TRNLib::CONTAINER_LAYER* layer, float x, float z, float& base_value, float affector_transform)
 {
 	std::vector<TRNLib::LAYER*> boundaries = layer->boundaries;
-	TRNLib::LAYER* height_affector = layer->getHeight();
+	std::vector<TRNLib::LAYER*> height_affector = layer->heights;
 
 	float transform_value = 0.0f;
 	bool has_boundaries = false;
@@ -169,7 +176,7 @@ float TerrainManager::processLayerHeight(TRNLib::LAYER* layer, float x, float z,
 	{
 		TRNLib::Boundary* boundary = (TRNLib::Boundary*)boundaries.at(i);
 
-		if (boundary->enabled)
+		if (boundary->enabled == false)
 			continue;
 		else
 			has_boundaries = true;
@@ -186,14 +193,22 @@ float TerrainManager::processLayerHeight(TRNLib::LAYER* layer, float x, float z,
 
 	if (transform_value != 0)
 	{
-		if (height_affector != NULL)
-			base_value = ((TRNLib::Height*)height_affector)->getBaseHeight(x, z, this);
+		for (unsigned int i = 0; i < height_affector.size(); i++)
+		{
+			TRNLib::Height* affector = (TRNLib::Height*)height_affector.at(i);
+			
+			if (affector->enabled)
+			{
+				base_value = 0;
+				affector->getBaseHeight(x, z, transform_value, base_value, this);
+			}
+		}
 
-		std::vector<TRNLib::LAYER*> children = layer->children;
+		std::vector<TRNLib::CONTAINER_LAYER*> children = layer->children;
 
 		for (unsigned int i = 0; i < children.size(); i++)
 		{
-			TRNLib::LAYER* child = children.at(i);
+			TRNLib::CONTAINER_LAYER* child = children.at(i);
 
 			if (child->enabled)
 				processLayerHeight(child, x, z, base_value, affector_transform * transform_value);
