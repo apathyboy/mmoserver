@@ -82,7 +82,7 @@ namespace TRNLib
 		std::vector<LAYER*> others;
 
 		LAYER* height;
-		std::vector<LAYER*> children;
+		std::vector<CONTAINER_LAYER*> children;
 
 		LAYER* getHeight(void);
 	};

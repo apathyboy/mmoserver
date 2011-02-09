@@ -121,7 +121,7 @@ Trn::Trn(std::string trnFile)
 	
 					while(jt != jend)
 					{
-						layers.push_back(_loadLayer((*jt)->children[0]));
+						layers.push_back((CONTAINER_LAYER*)_loadLayer((*jt)->children[0]));
 						jt++;
 					}
 					it++;
@@ -260,6 +260,7 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 	if(strcmp(parent->name, "LAYRFORM") == 0)
 	{
 		CONTAINER_LAYER* result = new CONTAINER_LAYER();
+		result->height = NULL;
 
 		std::vector<IFF::NODE*>::iterator it = parent->children.begin();
 		std::vector<IFF::NODE*>::iterator end = parent->children.end();
@@ -309,7 +310,10 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 				else if (temp->type == LAYER_AHCN || temp->type == LAYER_AHFR)
 					result->height = temp;
 				else if (temp->type == LAYER_CONTAINER)
-					result->children.push_back(temp);
+				{
+					result->children.push_back((CONTAINER_LAYER*)temp);
+					temp->parent = result;
+				}
 				else if(temp)
 					result->others.push_back(temp);
 				else

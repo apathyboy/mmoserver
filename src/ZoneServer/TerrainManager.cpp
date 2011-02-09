@@ -90,7 +90,7 @@ float TerrainManager::getWaterHeight(float x, float z, float& water_height)
 
 TRNLib::CONTAINER_LAYER* TerrainManager::findLayer(float x, float z)
 {
-	std::vector<TRNLib::LAYER*>* layers = terrain_file.getLayers();
+	std::vector<TRNLib::CONTAINER_LAYER*>* layers = terrain_file.getLayers();
 	TRNLib::CONTAINER_LAYER* layer;
 	std::vector<TRNLib::LAYER*> boundaries;
 	TRNLib::Boundary* boundary;
@@ -113,7 +113,7 @@ TRNLib::CONTAINER_LAYER* TerrainManager::findLayer(float x, float z)
 
 TRNLib::CONTAINER_LAYER* TerrainManager::findLayerRecursive(float x, float z, TRNLib::CONTAINER_LAYER* rootLayer)
 {
-	std::vector<TRNLib::LAYER*> layers = rootLayer->children;
+	std::vector<TRNLib::CONTAINER_LAYER*> layers = rootLayer->children;
 	TRNLib::LAYER* test_layer;
 	TRNLib::CONTAINER_LAYER* layer;
 	std::vector<TRNLib::LAYER*> boundaries;
