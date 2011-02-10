@@ -1,5 +1,4 @@
 #include "Height.h"
-#include "../../TerrainManager/TerrainManager.h"
 
 class AHCN : public TRNLib::Height
 {
@@ -9,5 +8,5 @@ public:
 	int   transform_type;
 	float height_val;
 
-	void getBaseHeight(float x, float z, float transform_value, float& base_value, TerrainManager* tm);
+	void getBaseHeight(float x, float z, float transform_value, float& base_value, TRNLib::Trn* terrain);
 };

@@ -200,7 +200,7 @@ float TerrainManager::processLayerHeight(TRNLib::CONTAINER_LAYER* layer, float x
 			if (affector->enabled)
 			{
 				base_value = 0;
-				affector->getBaseHeight(x, z, transform_value, base_value, this);
+				affector->getBaseHeight(x, z, transform_value, base_value, &terrain_file);
 			}
 		}
 

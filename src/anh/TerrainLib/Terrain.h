@@ -27,6 +27,7 @@ namespace TRNLib
 		std::vector<RFAM*>* getRadialFloraFamilies() {return &RadialFloraFamilies;}
 		std::vector<EFAM*>* getEnvironmentFamilies() {return &EnvironmentFamilies;}
 		std::vector<MFAM*>* getFractalFamilies() {return &FractalFamilies;}
+		MFAM*				getFractal(int fractal_id);
 
 		std::vector<CONTAINER_LAYER*>* getLayers() {return &layers;}
 

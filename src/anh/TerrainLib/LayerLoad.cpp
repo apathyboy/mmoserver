@@ -1,4 +1,5 @@
 #include "Layer.h"
+#include "Terrain.h"
 
 //Boundries
 #include "BREC.h"
@@ -370,7 +371,7 @@ AHCN::AHCN(unsigned char* data, unsigned int dataSize)
 	//printf("C: %d %f\n", unk1, unk2);
 }
 
-void AHCN::getBaseHeight(float x, float z, float transform_value, float& base_value, TerrainManager* tm)
+void AHCN::getBaseHeight(float x, float z, float transform_value, float& base_value, TRNLib::Trn* terrain)
 {
 	base_value = height_val * transform_value;
 }
@@ -386,9 +387,9 @@ AHFR::AHFR(unsigned char* data, unsigned int dataSize)
 	//printf("F: %d %d %f\n", unk1, unk2, unk3);
 }
 
-void AHFR::getBaseHeight(float x, float z, float transform_value, float& base_value, TerrainManager* tm)
+void AHFR::getBaseHeight(float x, float z, float transform_value, float& base_value, TRNLib::Trn* terrain)
 {
-	TRNLib::MFAM* fractal = tm->getFractal(fractal_id);
+	TRNLib::MFAM* fractal = terrain->getFractal(fractal_id);
 	
 	float noise_result = fractal->getNoise(x, z) * height_val;
 

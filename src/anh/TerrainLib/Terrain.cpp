@@ -336,3 +336,17 @@ void SaveTerrain(std::string outputFile)
 {
 
 }
+
+MFAM* Trn::getFractal(int fractal_id)
+{
+	MFAM* result;
+
+	for (unsigned int i = 0; i < FractalFamilies.size(); i++)
+	{
+		result = FractalFamilies.at(i);
+		if (result->fractal_id == fractal_id)
+			return result;
+	}
+
+	return NULL;
+}
