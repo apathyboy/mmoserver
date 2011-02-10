@@ -49,8 +49,6 @@ class MessageDispatch;
 class CharacterLoginHandler;
 class ObjectControllerDispatch;
 
-class TerrainManager;
-
 // @note: for initial testing the new "Service" classes will be manually set up here
 // in the future we should have a map container of string to services that they are
 // stored in to make it easier to dynamically register services.
@@ -65,7 +63,7 @@ class ProcessAddress
 public:
 
     uint32	mType;
-    BString		mAddress;
+    BString mAddress;
     uint16	mPort;
     uint32	mStatus;
     uint32	mActive;
@@ -110,8 +108,6 @@ private:
     MessageDispatch*              mMessageDispatch;
     CharacterLoginHandler*        mCharacterLoginHandler;
     ObjectControllerDispatch*     mObjectControllerDispatch;
-
-	TerrainManager*				  mTerrainManager;
 
     std::unique_ptr<zone::HamService>   ham_service_;
 };

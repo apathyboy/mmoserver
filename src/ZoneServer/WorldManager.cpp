@@ -117,6 +117,7 @@ WorldManager::WorldManager(uint32 zoneId,ZoneServer* zoneServer,Database* databa
     // load planet names and terrain files so we can start heightmap loading
     _loadPlanetNamesAndFiles();
 
+
     // create schedulers
     mSubsystemScheduler		= new Anh_Utils::Scheduler();
     mObjControllerScheduler = new Anh_Utils::Scheduler();
