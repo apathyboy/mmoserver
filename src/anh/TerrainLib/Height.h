@@ -2,7 +2,7 @@
 #define ANH_TERRAIN_HEIGHT_H_
 
 #include "layer.h"
-#include "../../ZoneServer/TerrainManager.h"
+#include "../../TerrainManager/TerrainManager.h"
 
 namespace TRNLib
 {

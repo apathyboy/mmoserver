@@ -1,5 +1,5 @@
 #include "Height.h"
-#include "../../ZoneServer/TerrainManager.h"
+#include "../../TerrainManager/TerrainManager.h"
 
 class AHCN : public TRNLib::Height
 {

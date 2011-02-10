@@ -3,6 +3,7 @@ option(DISABLE_LEGACY "disables legacy projects" FALSE)
 # libraries
 
 add_subdirectory(anh)
+add_subdirectory(TerrainManager)
 
 # executables
 

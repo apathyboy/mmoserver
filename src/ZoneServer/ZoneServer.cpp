@@ -395,6 +395,69 @@ void ZoneServer::_connectToConnectionServer(void)
 
 //======================================================================================================================
 
+int main(int argc, char* argv[])
+{
+	ZoneServer* gZoneServer = NULL;
+
+    // Initialize the google logging.
+    google::InitGoogleLogging(argv[0]);
+
+#ifndef _WIN32
+    google::InstallFailureSignalHandler();
+#endif
+
+    FLAGS_log_dir = "./logs";
+    FLAGS_stderrthreshold = 0;
+
+    //set stdout buffers to 0 to force instant flush
+    setvbuf( stdout, NULL, _IONBF, 0);
+
+    //try {
+
+    // Start things up
+    gZoneServer = new ZoneServer(argc, argv);
+
+    // Main loop
+    while(1)
+    {
+        if(AdminManager::Instance()->shutdownZone())
+        {
+            break;
+        }
+        else if (Anh_Utils::kbhit())
+        {
+            char input = std::cin.get();
+            if(input == 'q')
+            {
+                break;
+            } else if(input == 'm') {
+                char message[256];
+                std::cin.getline(message,256);
+                gWorldManager->zoneSystemMessage(message);
+            }
+        }
+
+        gZoneServer->Process();
+        gMessageFactory->Process(); //Garbage Collection
+
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+
+    }
+
+    // Shut things down
+
+    delete gZoneServer;
+    gZoneServer = NULL;
+    //} catch (std::exception& e) {
+    //	std::cout << e.what() << std::endl;
+    //	std::cin.get();
+    //	return 0;
+    //}
+
+    return 0;
+}
+
+//======================================================================================================================
 
 
 

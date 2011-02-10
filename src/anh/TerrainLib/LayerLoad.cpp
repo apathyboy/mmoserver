@@ -1,5 +1,4 @@
 #include "Layer.h"
-#include "../../ZoneServer/TerrainManager.h"
 
 //Boundries
 #include "BREC.h"
