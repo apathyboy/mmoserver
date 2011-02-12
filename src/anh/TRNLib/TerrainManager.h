@@ -29,28 +29,29 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define ANH_TERRAINMANAGER_H
 
 #include <string>
-
-#include "anh\TerrainLib\Terrain.h"
-
+#include "Terrain.h"
 
 class Trn;
 
-class TerrainManager
+namespace TRNLib
 {
-public:
-	TerrainManager(std::string terrain_filename);
-	~TerrainManager(void);
+	class TerrainManager
+	{
+	public:
+		TerrainManager(std::string terrain_filename);
+		~TerrainManager(void);
 
-	TRNLib::HEADER* getHeaders(void);
-	float getWaterHeight(float x, float z, float& water_height);
-	TRNLib::LAYER* findLayer(float x, float z);
-	TRNLib::MFAM* getFractal(int fractal_id);
-	float getHeight(float x, float z);
+		HEADER* getHeaders(void);
+		float getWaterHeight(float x, float z, float& water_height);
+		LAYER* findLayer(float x, float z);
+		MFAM* getFractal(int fractal_id);
+		float getHeight(float x, float z);
+		float calculateFeathering(float value, int featheringType);
 
-private:
-	TRNLib::Trn terrain_file;
-	TRNLib::LAYER* findLayerRecursive(float x, float z, TRNLib::LAYER* rootLayer);
-	float processLayerHeight(TRNLib::CONTAINER_LAYER* layer, float x, float z, float& base_value, float affector_transform);
+	private:
+		Trn terrain_file;
+		LAYER* findLayerRecursive(float x, float z, LAYER* rootLayer);
+		float processLayerHeight(TRNLib::CONTAINER_LAYER* layer, float x, float z, float& base_value, float affector_transform);
+	};
 };
-
 #endif

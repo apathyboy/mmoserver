@@ -285,8 +285,8 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 				unsigned char* tempData = (*it)->data;
 
 				//Load Unknowns and description
-				memcpy(&result->unk2, &tempData[0], 4);
-				memcpy(&result->unk3, &tempData[4], 4);
+				memcpy(&result->invert_boundaries, &tempData[0], 4);
+				memcpy(&result->invert_filters, &tempData[4], 4);
 				memcpy(&result->unk4, &tempData[8], 4);
 
 				unsigned int strLen = strlen(const_cast<const char*>((char*)&tempData[9])) + 1;
@@ -309,6 +309,8 @@ LAYER* Trn::_loadLayer(IFF::NODE* parent)
 				}
 				else if (temp->type == LAYER_AHCN || temp->type == LAYER_AHFR)
 					result->heights.push_back(temp);
+				else if (temp->type == LAYER_FFRA || temp->type == LAYER_FHGT || temp->type == LAYER_FSLP)
+					result->filters.push_back(temp);
 				else if (temp->type == LAYER_CONTAINER)
 				{
 					result->children.push_back(reinterpret_cast<CONTAINER_LAYER*>(temp));

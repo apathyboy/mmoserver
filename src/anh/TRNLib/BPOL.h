@@ -7,12 +7,13 @@ public:
 	
 	std::vector<TRNLib::VERTEX*> verts;
 
-	int feather_type;
-	float shore_smoothness;
 	int use_water_height;
 	float water_height;
 	float water_shader_size;
 	unsigned char* water_shader;
 
-	bool isContained(float x, float z);
+	float max_x, max_z, min_x, min_z;
+
+	bool isContained(float px, float pz);
+	float process(float px, float pz);
 };

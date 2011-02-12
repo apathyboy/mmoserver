@@ -7,9 +7,10 @@ public:
 	
 	std::vector<TRNLib::VERTEX*> verts;
 
-	int feather_type;
-	float feather_amount;
 	float line_width;
 
+	float max_x, max_z, min_x, min_z;
+
 	bool isContained(float x, float z);
+	float process(float px, float pz);
 };

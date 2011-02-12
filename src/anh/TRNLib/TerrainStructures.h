@@ -136,8 +136,8 @@ public:
 	float			amplitude;			//Amplitude??
 	float			freq_x;				//Frequency X?
 	float			freq_z;				//Frequency Y?
-	unsigned int	offset_x;			//X offset??
-	unsigned int	offset_z;			//y offset?
+	float			offset_x;			//X offset??
+	float			offset_z;			//y offset?
 	unsigned int	combination_type;	//Use both?
 
 	float			offset;				// Resulting offset from amplitude

@@ -333,7 +333,7 @@ double MFAM::calculateCombination1(float x, float z)
 	float zNoise, xNoise, noise_gen = 0;
 	double coord[2];
 
-	for (int i = 0; i < octaves; ++i) 
+	for (unsigned int i = 0; i < octaves; ++i) 
 	{
 		zNoise = zOffset * curr_offset;
 		xNoise = xOffset * curr_offset;
@@ -361,7 +361,7 @@ double MFAM::calculateCombination2(float x, float z)
 	double result = 0;
 	double coord[2];
 
-	for (int i = 0; i < octaves; ++i) 
+	for (unsigned int i = 0; i < octaves; ++i) 
 	{
 		zNoise = zOffset * curr_offset;
 		xOffset = x + offset_x;
@@ -391,7 +391,7 @@ double MFAM::calculateCombination3(float x, float z)
 
 	double coord[2];
 
-	for (int i = 0; i < octaves; ++i) 
+	for (unsigned int i = 0; i < octaves; ++i) 
 	{
 		zNoise = zOffset * curr_offset;
 		xOffset = x + offset_x; 
@@ -422,7 +422,7 @@ double MFAM::calculateCombination4(float x, float z)
 	float curr_ampl = 1.0;
 	double result = 0;
 
-	for (int i = 0; i < octaves; ++i) 
+	for (unsigned int i = 0; i < octaves; ++i) 
 	{
 		zNoise = zOffset * curr_offset;
 		xNoise = xOffset * curr_offset;
@@ -459,7 +459,7 @@ double MFAM::calculateCombination5(float x, float z)
 	float curr_offset = 1.0;
 	float curr_ampl = 1.0;
 
-	for (int i = 0; i < octaves; ++i) 
+	for (unsigned int i = 0; i < octaves; ++i) 
 	{
 		zNoise = zOffset * curr_offset;
 		xNoise = xOffset * curr_offset;

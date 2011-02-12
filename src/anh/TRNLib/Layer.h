@@ -69,8 +69,8 @@ namespace TRNLib
 			parent = NULL;
 		}
 	
-		int unk2;
-		int unk3; //type unknown
+		int invert_boundaries;
+		int invert_filters; 
 		int unk4;
 		unsigned char* description;
 
@@ -78,8 +78,9 @@ namespace TRNLib
 		std::vector<CONTAINER_LAYER*> children;
 
 		std::vector<LAYER*> boundaries;
-		std::vector<LAYER*> others;
 		std::vector<LAYER*> heights;
+		std::vector<LAYER*> filters;
+		std::vector<LAYER*> others;
 	};
 };
 

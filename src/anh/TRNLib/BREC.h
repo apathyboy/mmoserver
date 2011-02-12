@@ -11,8 +11,6 @@ public:
 	float x2;
 	float z2;
 
-	int feather_type;
-	float feather_amount;
-
-	bool isContained(float x, float z);
+	bool isContained(float px, float pz);
+	float process(float px, float pz);
 };

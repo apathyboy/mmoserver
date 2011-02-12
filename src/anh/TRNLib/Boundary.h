@@ -8,7 +8,11 @@ namespace TRNLib
 	class Boundary : public LAYER
 	{
 	public:
-		virtual bool isContained(float x, float z) = 0;
+		int feather_type;
+		float feather_amount;
+
+		virtual bool isContained(float px, float pz) = 0;
+		virtual float process(float px, float pz) = 0;
 	};
 };
 
