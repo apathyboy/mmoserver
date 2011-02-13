@@ -85,6 +85,21 @@ float TerrainManager::getWaterHeight(float x, float z, float& water_height)
 	return false;
 }
 
+bool TerrainManager::isWater(float x, float z)
+{
+	float water_height;
+	float height;
+
+	if (getWaterHeight(x, z, water_height))
+	{
+		height = getHeight(x, z);
+		if (height <= water_height)
+			return true;
+	}
+
+	return false;
+}
+
 LAYER* TerrainManager::findLayer(float x, float z)
 {
 	std::vector<CONTAINER_LAYER*>* layers = terrain_file.getLayers();

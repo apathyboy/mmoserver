@@ -43,15 +43,16 @@ namespace TRNLib
 
 		HEADER* getHeaders(void);
 		float getWaterHeight(float x, float z, float& water_height);
-		LAYER* findLayer(float x, float z);
+		bool isWater(float x, float z);
 		MFAM* getFractal(int fractal_id);
 		float getHeight(float x, float z);
-		float calculateFeathering(float value, int featheringType);
 
 	private:
 		Trn terrain_file;
 		LAYER* findLayerRecursive(float x, float z, LAYER* rootLayer);
 		float processLayerHeight(TRNLib::CONTAINER_LAYER* layer, float x, float z, float& base_value, float affector_transform);
+		float calculateFeathering(float value, int featheringType);
+		LAYER* findLayer(float x, float z);
 	};
 };
 #endif
