@@ -59,6 +59,6 @@ TEST(TerrainManagerTest, getHeight) {
 		pos = coords.at(i);
 		float height_test = tm_test.getHeight(pos.x, pos.z);
 
-		EXPECT_TRUE( fabs(height_test - pos.y) < 2 ) << "Expected height of " << pos.y << " and got " << height_test;
+		EXPECT_TRUE( fabs(height_test - pos.y) < 1 ) << "Expected height of " << pos.y << " and got " << height_test;
 	}
 }

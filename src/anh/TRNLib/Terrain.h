@@ -1,7 +1,6 @@
 #include "../IFFLib/IFF.h"
 #include "TerrainStructures.h"
 #include "Boundary.h"
-#include "Filter.h"
 
 namespace TRNLib
 {
