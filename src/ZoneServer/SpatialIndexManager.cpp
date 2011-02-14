@@ -821,7 +821,7 @@ void SpatialIndexManager::createInWorld(CreatureObject* creature)
         return;
     }
 
-    CellObject* cell = dynamic_cast<CellObject*>(gWorldManager->getObjectById(creature->getParentId()));
+	CellObject* cell = dynamic_cast<CellObject*>(gWorldManager->getObjectById(creature->getParentId()));
     if(!cell)	{
         assert(false && "SpatialIndexManager::createInWorld cannot cast cell ???? ");
         return;

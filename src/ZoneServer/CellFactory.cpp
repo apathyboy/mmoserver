@@ -43,6 +43,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "DatabaseManager/DatabaseResult.h"
 #include "DatabaseManager/DataBinding.h"
 #include "Utils/utils.h"
+#include "SpatialIndexManager.h"
 
 //=============================================================================
 
@@ -239,6 +240,8 @@ void CellFactory::handleObjectReady(Object* object,DispatchClient* client)
 
         if(creature->getCreoGroup() == CreoGroup_Shuttle)
             gWorldManager->addShuttle(dynamic_cast<Shuttle*>(creature));
+//		else
+//			gSpatialIndexManager->createInWorld(creature);
     }
     break;
 
@@ -270,7 +273,7 @@ void CellFactory::handleObjectReady(Object* object,DispatchClient* client)
     }
 
     cell->addObjectSecure(object);
-
+	
     if(cell->getLoadCount() == cell->getObjects()->size())
     {
         if(!(_removeFromObjectLoadMap(cell->getId())))
